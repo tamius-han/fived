@@ -55,17 +55,12 @@
   <ItemGroup>
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="script\Camera\BasicCameraMovement.cs" />
-    <Compile Include="script\lib\DataArray.cs" />
-    <Compile Include="script\lib\Perlin.cs" />
-    <Compile Include="script\lib\Simplex.cs" />
     <Compile Include="script\planet\Planet.cs" />
     <Compile Include="script\planet\geometry\D20.cs" />
     <Compile Include="script\planet\PlanetGenerator.cs" />
     <Compile Include="script\planet\topology\PlanetCell.cs" />
     <Compile Include="script\planet\topology\PlanetData.cs" />
     <Compile Include="script\planet\topology\PlanetVertex.cs" />
-    <Compile Include="script\SystemInfo\SystemInfo.cs" />
-    <Compile Include="script\TestRotator.cs.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
 </Project>
