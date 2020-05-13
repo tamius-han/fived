@@ -103,9 +103,13 @@ public class Planet : MeshInstance {
       foreach (PlanetCell c in data.faces) {
         c.AddToSurfaceTool(surfaceTool);
       }
-      foreach (PlanetCell c in data.middleFaces) {
-        c.AddToSurfaceTool(surfaceTool);
-      }
+      // everything is in data, we no longer put our middle faces separately
+      // turns out this is dumb, because stitching the edges takes less than
+      // a second anyway
+      
+      // foreach (PlanetCell c in data.middleFaces) {
+      //   c.AddToSurfaceTool(surfaceTool);
+      // }
     }
     surfaceTool.GenerateNormals();
     surfaceTool.Commit(this.planetMesh);

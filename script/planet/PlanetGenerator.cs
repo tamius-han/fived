@@ -487,14 +487,8 @@ public class PlanetGenerator {
   private void SubdivideFaceRecursively(PlanetCell cell, ref List<PlanetVertex> newVertices, List<PlanetCell> newFaces, List<PlanetCell> middleFaces, Dictionary<long, int> vertexCache, D20FaceEdge mainEdges, EdgeData outerEdges, float radius, int iterations) {
     // Debug.WriteLine("edge: " + mainEdges + " --> " + (D20FaceEdge.AB | D20FaceEdge.BC));
 
-    // add current cell to newFaces, but only if we're at the bottom of the recursion
     if (iterations == 0) {
-      if (mainEdges != D20FaceEdge.MiddleFace) {
-        newFaces.Add(cell);
-      } else {
-        middleFaces.Add(cell);
-      }
-
+      newFaces.Add(cell);
 
       if (mainEdges == D20FaceEdge.NotAnEdge) {
         return;
