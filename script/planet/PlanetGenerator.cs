@@ -86,7 +86,7 @@ public class PlanetGenerator {
 
     List<LandscapeTypeConf> landscapeConf = new List<LandscapeTypeConf>();
     landscapeConf.Add(new LandscapeTypeConf(LandscapeType.Plains, 0.0f, 0.6f));
-    landscapeConf.Add(new LandscapeTypeConf(LandscapeType.Hills, 0.6f, 0.6f));
+    landscapeConf.Add(new LandscapeTypeConf(LandscapeType.Hills, 0.6f, 0.9f));
     landscapeConf.Add(new LandscapeTypeConf(LandscapeType.Mountains, 0.9f, 1.0f));
 
 
@@ -122,7 +122,7 @@ public class PlanetGenerator {
         
         getDisplacementGradient(
           landscapeConf,
-          (landscapeTypeSimplex.GetNoise3d(vertices[j].x, vertices[j].y, vertices[j].z) + 1f) / 2f,
+          (landscapeTypeSimplex.GetNoise3d(vertices[j].x, vertices[j].y, vertices[j].z) + 1f) * 0.5f,
           out type,
           out displacementMultiplier
         );
@@ -147,7 +147,7 @@ public class PlanetGenerator {
     while (i < gradient.Count && rng < gradient[i].rarityTo) {
       i++;
     }
-    i--;
+    // i--;
 
     // these two can be optimized away cos above sentence aint right
     if (i < 0) {
@@ -158,20 +158,21 @@ public class PlanetGenerator {
     }
 
     type = gradient[i].type;
-    switch (type) {
-      case LandscapeType.Mountains: 
-        perlinMultiplier = 1.337f;
-        break;
-      case LandscapeType.Hills: 
-        perlinMultiplier = 0.5f;
-        break;
-      case LandscapeType.Plains:
-        perlinMultiplier = 0.2f;
-        break;
-      default: 
-        perlinMultiplier = 0.2f;
-        break;
+    
+    if(rng > 0.6f) {
+      perlinMultiplier = 2.337f;
+      return;
     }
+    if(rng > 0.45f) {
+      perlinMultiplier = 1.0f;
+      return;
+    }
+    if(rng > 0.1f) {
+      perlinMultiplier = 0.2f;
+      return;
+    }
+    perlinMultiplier = 0.1f;
+    return;
   }
 
   public void DisplacePoles() {
