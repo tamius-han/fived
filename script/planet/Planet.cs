@@ -93,7 +93,7 @@ public class Planet : MeshInstance {
     }
 
     perlinTimer.Stop();
-    ts = planetGeneratorTimer.Elapsed;
+    ts = perlinTimer.Elapsed;
     System.Diagnostics.Debug.WriteLine("Perlin applied. Time needed: " + ts.Minutes + "m " + ts.Seconds + "." + ts.Milliseconds);
 
     Stopwatch surfaceToolTimer = new Stopwatch();
@@ -106,7 +106,7 @@ public class Planet : MeshInstance {
       // everything is in data, we no longer put our middle faces separately
       // turns out this is dumb, because stitching the edges takes less than
       // a second anyway
-      
+
       // foreach (PlanetCell c in data.middleFaces) {
       //   c.AddToSurfaceTool(surfaceTool);
       // }

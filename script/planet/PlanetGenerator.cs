@@ -1,3 +1,4 @@
+using Biome;
 using Godot;
 using PlanetGeometry;
 using PlanetTopology;
@@ -79,6 +80,311 @@ public class PlanetGenerator {
     return data;
   }
 
+  public List<PlanetVertex> AddPerlinDisplacement(List<PlanetVertex> vertices, float radius, int iterations, float persistence) {
+    int cpuCores = System.Environment.ProcessorCount;
+    OpenSimplexNoise simplex = new OpenSimplexNoise();
+
+    List<LandscapeTypeConf> landscapeConf = new List<LandscapeTypeConf>();
+    landscapeConf.Add(new LandscapeTypeConf(LandscapeType.Plains, 0.0f, 0.6f));
+    landscapeConf.Add(new LandscapeTypeConf(LandscapeType.Hills, 0.6f, 0.6f));
+    landscapeConf.Add(new LandscapeTypeConf(LandscapeType.Mountains, 0.9f, 1.0f));
+
+
+    int seed = 69420;
+    int octaves = 8;
+    float period = 0.42f * radius;
+    persistence = 0.37f * (radius / 8);
+
+    simplex.Seed = seed;
+    simplex.Octaves = octaves;                   // number of repetitions
+    simplex.Period = period;                     // the smaller the number, the more the details
+    simplex.Persistence = persistence;           // the bigger the number, the more prominent the smaller details are
+
+    OpenSimplexNoise landscapeTypeSimplex = new OpenSimplexNoise();
+    landscapeTypeSimplex.Seed = seed + 69;
+    landscapeTypeSimplex.Octaves = octaves;
+    landscapeTypeSimplex.Period = period;
+    landscapeTypeSimplex.Persistence = persistence;
+
+    // each thread gets a chunk of 1000 vertices to process at a time
+    int step = 1000;
+
+    Parallel.For(0, (int)Math.Ceiling((float)vertices.Count / (float)step), new ParallelOptions {MaxDegreeOfParallelism = cpuCores}, i => {
+      int maxI = (i + 1) * step;
+      if (maxI > vertices.Count) {
+        maxI = vertices.Count;
+      }
+      float displacement, displacementMultiplier;
+      LandscapeType type;
+
+      for (int j = i * step; j < maxI; j++) {
+        displacement = simplex.GetNoise3d(vertices[j].x, vertices[j].y, vertices[j].z);
+        
+        getDisplacementGradient(
+          landscapeConf,
+          (landscapeTypeSimplex.GetNoise3d(vertices[j].x, vertices[j].y, vertices[j].z) + 1f) / 2f,
+          out type,
+          out displacementMultiplier
+        );
+
+        Vector3 tmp = new Vector3(vertices[j].x, vertices[j].y, vertices[j].z);
+        Vector3 vecDisplacement = (new Vector3(vertices[j].x, vertices[j].y, vertices[j].z) / tmp.Length()) * displacement * displacementMultiplier;
+        tmp += vecDisplacement;
+        vertices[j].Update(tmp.x, tmp.y, tmp.z, displacement);
+      }
+    });
+
+
+
+
+    return vertices;
+  }
+
+  public void getDisplacementGradient(List<LandscapeTypeConf> gradient, float rng, out LandscapeType type, out float perlinMultiplier) {
+    int i = 0;
+
+    // this loop goes one too far, always. We subtract 1 from final result
+    while (i < gradient.Count && rng < gradient[i].rarityTo) {
+      i++;
+    }
+    i--;
+
+    // these two can be optimized away cos above sentence aint right
+    if (i < 0) {
+      i = 0;
+    }
+    if (i >= gradient.Count) {
+      i = gradient.Count - 1;
+    }
+
+    type = gradient[i].type;
+    switch (type) {
+      case LandscapeType.Mountains: 
+        perlinMultiplier = 1.337f;
+        break;
+      case LandscapeType.Hills: 
+        perlinMultiplier = 0.5f;
+        break;
+      case LandscapeType.Plains:
+        perlinMultiplier = 0.2f;
+        break;
+      default: 
+        perlinMultiplier = 0.2f;
+        break;
+    }
+  }
+
+  public void DisplacePoles() {
+    // Keep in mind that we are displacing _all_ six poles: north, south, east, west, front/top, back/bottom
+
+    // TODO: implement
+  }
+
+  public void GenerateLandscapeTypes(List<PlanetVertex>[] vertices, List<LandscapeTypeConf> biomeConfs, int biomeSeeds, int rngSeed, float minRandomStrength, float maxRandomStrength) {
+    // int cpuCores = System.Environment.ProcessorCount;
+
+    // int totalVertices = vertices[0].Count * vertices.Length;
+    // int randomInt, initialVertexIndex, initialFaceIndex;
+
+    // PlanetVertex vertex;
+
+    // Random random = new Random(rngSeed);
+
+    // // we won't parallelize this right away
+    // foreach (LandscapeTypeConf biomeConf in biomeConfs) {
+    //   for (int i = 0; i < ((int)Math.Ceiling(biomeConf.rarity * (float)biomeSeeds)); i++) {
+    //     randomInt = random.Next(totalVertices);
+    //     initialFaceIndex = randomInt / vertices.Length;
+    //     initialVertexIndex = randomInt % vertices.Length;
+
+    //     vertex = vertices[initialFaceIndex][initialVertexIndex];
+
+    //     // every vertex should have at least 5 neighbors. If it has less than that,
+    //     // we're looking at a vertex that shouldn't even exist — so we reroll
+    //     if (vertex.neighbors.Count < 5) {
+    //       i--;
+    //       continue;
+    //     }
+    //   }
+    // }
+
+  }
+
+  #region face-subdivision
+
+  //   /**
+  //    *   This is the series of triangles we want to get
+  //    *
+  //    *         Arrangement           Triangle abbreviations
+  //    *                                  
+  //    *              /\                       *
+  //    *             /CC\                     / \
+  //    *            /    \                   / C \
+  //    *           /      \                 /_____\
+  //    *          /AC    BC\              / \     / \
+  //    *         /__________\            / A \ M / B \
+  //    *        /\BM      AM/\          /_____\ /_____\   
+  //    *       /CA\        /CB\
+  //    *      /    \      /    \
+  //    *     /      \    /      \
+  //    *    /AA    BA\CM/AB    BB\
+  //    *   /__________\/__________\
+  //    *
+  //    *   We arrange triangles in this way to make joining them a bit more sense.
+  //    *   
+  //    *   When joining edges, points on the edges around middle triangle are deduplicated
+  //    *   and points around the outer edges are concatenated. When deduplicating, we must
+  //    *   remember that points in edges of the inner (M) triangle are referenced in the 
+  //    *   opposite order than they are on the edges of the 
+  //    *
+  //   */
+
+  
+  private void SubdivideFaceRecursively(PlanetCell cell, List<PlanetVertex> newVertices, List<PlanetCell> newFaces, List<PlanetCell> middleFaces, float radius, D20FaceEdge mainEdges, EdgeData outerEdges, int cacheSize, int iterations) {
+    Dictionary<long, int> vertexCache = new Dictionary<long, int>(cacheSize);
+
+    newVertices.Add(cell.a);
+    newVertices.Add(cell.b);
+    newVertices.Add(cell.c);
+
+    cell.ai = 0;
+    cell.bi = 1;
+    cell.ci = 2;
+
+    this.SubdivideFaceRecursively(cell, ref newVertices, newFaces, middleFaces, vertexCache, mainEdges, outerEdges, radius, iterations);
+  }
+
+  private void SubdivideFaceRecursively(PlanetCell cell, ref List<PlanetVertex> newVertices, List<PlanetCell> newFaces, List<PlanetCell> middleFaces, Dictionary<long, int> vertexCache, D20FaceEdge mainEdges, EdgeData outerEdges, float radius, int iterations) {
+    // Debug.WriteLine("edge: " + mainEdges + " --> " + (D20FaceEdge.AB | D20FaceEdge.BC));
+
+    if (iterations == 0) {
+      newFaces.Add(cell);
+
+      if (mainEdges == D20FaceEdge.NotAnEdge) {
+        return;
+      }
+      // if we're on the outer edge, we also add the face (not the vertex) to the outer edge structure
+      if ((mainEdges & D20FaceEdge.AB) != 0) {
+        outerEdges.abCells.Add(cell);
+      } 
+      if ((mainEdges & D20FaceEdge.BC) != 0) {
+        outerEdges.bcCells.Add(cell);
+      }
+      if ((mainEdges & D20FaceEdge.CA) != 0) {
+        outerEdges.acCells.Add(cell);
+      }
+
+      return;
+    }
+
+    int abIndex = this.SubdivideEdge(cell.ai, cell.bi, ref vertexCache, ref newVertices, radius);
+    int bcIndex = this.SubdivideEdge(cell.bi, cell.ci, ref vertexCache, ref newVertices, radius);
+    int caIndex = this.SubdivideEdge(cell.ci, cell.ai, ref vertexCache, ref newVertices, radius);
+
+    // Create four new faces and handle them recursively
+    PlanetCell va = new PlanetCell(
+    // vertices
+    cell.a,
+    newVertices[abIndex],
+    newVertices[caIndex],
+    // indices
+    cell.ai,
+    abIndex,
+    caIndex
+    );
+    PlanetCell vb = new PlanetCell(
+    // indices
+    newVertices[abIndex],
+    cell.b,
+    newVertices[bcIndex],
+    
+    // vertices
+    abIndex,
+    cell.bi,
+    bcIndex
+    );
+    PlanetCell vc = new PlanetCell(
+    // indices
+    newVertices[caIndex],
+    newVertices[bcIndex],
+    cell.c,
+
+    // vertices
+    caIndex,
+    bcIndex,
+    cell.ci
+    );
+    PlanetCell vm = new PlanetCell(
+    // indices
+    newVertices[bcIndex],
+    newVertices[caIndex],
+    newVertices[abIndex],
+
+    // vertices
+    bcIndex,
+    caIndex,
+    abIndex
+    );
+
+    SubdivideFaceRecursively(va, ref newVertices, newFaces, middleFaces, vertexCache, mainEdges & (D20FaceEdge.AB | D20FaceEdge.CA), outerEdges, radius, iterations - 1);
+    SubdivideFaceRecursively(vb, ref newVertices, newFaces, middleFaces, vertexCache, mainEdges & (D20FaceEdge.AB | D20FaceEdge.BC), outerEdges, radius, iterations - 1);
+    SubdivideFaceRecursively(vc, ref newVertices, newFaces, middleFaces, vertexCache, mainEdges & (D20FaceEdge.CA | D20FaceEdge.BC), outerEdges, radius, iterations - 1);
+
+    // Middle faces _always_ get a special mark. Since the previous three calls strip away MiddleFace bit, the final 
+    // level of recursion will only have "middle" leaf nodes marked. We store those nodes separately, since these
+    // "middle faces" duplicate points for topology. We still add them to the list, though, mostly because render
+    // still needs them (even if the topology doesn't)
+    SubdivideFaceRecursively(vm, ref newVertices, newFaces, middleFaces, vertexCache, D20FaceEdge.MiddleFace, outerEdges, radius, iterations - 1);
+  }
+
+  private void AddVertexIndexToCache(int index, ref Dictionary<long, int> vertexCache) {
+	vertexCache.Add(index, index);
+  }
+
+  private int SubdivideEdge(int indexA, int indexB, ref Dictionary<long, int> cache, ref List<PlanetVertex> vertices, float radius) {
+	long key;
+	int index;
+
+	if (indexA < indexB) {
+	  key = ((long)indexA << 32) + indexB;
+	} else {
+	  key = ((long)indexB << 32) + indexA;
+	}
+
+	if (cache.TryGetValue(key, out index)) {
+	  // System.Diagnostics.Debug.WriteLine("have index " + index + "in cache. Vertex get: [" + vertices[index].x + ", " + vertices[index].y + ", " + vertices[index].z + "]");
+	  return index;
+	}
+
+	try {
+	  PlanetVertex a = vertices[indexA];
+	  PlanetVertex b = vertices[indexB];
+
+	  // System.Diagnostics.Debug.WriteLine("Subdividing a: [" + a.x + ", " + a.y + ", " + a.z + "] and b [" + b.x + ", " + b.y + ", " + b.z + "]");
+
+
+	  PlanetVertex newVertex = new PlanetVertex(
+		(a.x + b.x) / 2f,
+		(a.y + b.y) / 2f,
+		(a.z + b.z) / 2f
+	  );
+	  newVertex.FixVertexPoint(radius);
+
+  	// System.Diagnostics.Debug.WriteLine("new vertex: [" + newVertex.x + ", " + newVertex.y + ", " + newVertex.z + "] will have index " + vertices.Count);
+
+	  index = vertices.Count;
+	  vertices.Add(newVertex);
+	  cache.Add(key, index);
+
+	  return index;
+	} catch (Exception e) {
+	  System.Diagnostics.Debug.WriteLine("indexA: " + indexA + "; index B: " + indexB + "; vertices size:" + vertices.Count + "; vertices cap: " + vertices.Capacity);
+	throw e;
+	}
+  }
+  #endregion
+
+  #region edge-stitch helpers
   public void StitchEdgeBruteForce(int face, EdgeData[] edgeCells, object stitchLock) {
     // only look for common edges with faces that have higher index.
     // faces with indices lower than <face> will already be merged
@@ -407,209 +713,42 @@ public class PlanetGenerator {
     // discard = null;
   }
 
-  public List<PlanetVertex> AddPerlinDisplacement(List<PlanetVertex> vertices, float radius, int iterations, float persistence) {
-    int cpuCores = System.Environment.ProcessorCount;
-    OpenSimplexNoise simplex = new OpenSimplexNoise();
+  #endregion
 
-    simplex.Seed = 42069;
-    simplex.Octaves = 8;                   // number of repetitions
-    simplex.Period = 0.42f * radius;       // the smaller the number, the more the details
-    simplex.Persistence = 0.37f * (radius / 8);           // the bigger the number, the more prominent the smaller details are
+  #region biome-generation
+  
+  // private void StartLandscapeTypePropagation(LandscapeType type, int rngSeed, float initialStrength, float maxDecayStrength, int maxRecursionDepth) {
+  //   OpenSimplexNoise simplex = new OpenSimplexNoise();
 
-    // each thread gets a chunk of 1000 vertices to process at a time
-    int step = 1000;
-
-    Parallel.For(0, (int)Math.Ceiling((float)vertices.Count / (float)step), new ParallelOptions {MaxDegreeOfParallelism = cpuCores}, i => {
-      int maxI = (i + 1) * step;
-      if (maxI > vertices.Count) {
-        maxI = vertices.Count;
-      }
-      float displacement;
-
-      for (int j = i * step; j < maxI; j++) {
-        displacement = simplex.GetNoise3d(vertices[j].x, vertices[j].y, vertices[j].z);
-        Vector3 tmp = new Vector3(vertices[j].x, vertices[j].y, vertices[j].z);
-        Vector3 vecDisplacement = (new Vector3(vertices[j].x, vertices[j].y, vertices[j].z) / tmp.Length()) * displacement;
-        tmp += vecDisplacement;
-        vertices[j].Update(tmp.x, tmp.y, tmp.z, displacement);
-      }
-    });
+  //   simplex.Seed = rngSeed;
+  //   simplex.Octaves = 8;                   // number of repetitions
+  //   simplex.Period = 3.42f;                // the smaller the number, the more the details
+  //   simplex.Persistence = 4.20f;           // the bigger the number, the more prominent the smaller details are
 
 
+  // }
+  
+  // private void PropagateLandscapeType(PlanetVertex v, LandscapeType type, float strength, float maxDecayStrength, int maxRecursionDepth, OpenSimplex simplex) {
+  //   float newStrength = strength - ((simplex.GetNoise3d(v.x, v.y, v.z) + 1) * maxDecayStrength);
 
+  //   if (newStrength <= 0 || maxRecursionDepth <= 0) {
+  //     return;
+  //   }
 
-    return vertices;
-  }
+  //   // populate unclaimed
+  //   if (v.landscapeType == null) {
+  //     v.landscapeType = new CellLandscapeType(type, newStrength);
+  //   } else {
+  //     // only propagate 
+  //     if (v.landscapeType.score < newStrength) {
+  //       v.landscapeType = new CellLandscapeType(type, newStrength);
+  //     }
+  //   }
 
+  //   foreach (PlanetVertex neighbor in v.neighbors) {
+  //     PropagateLandscapeType(neighbor, type, newStrength, maxDecayStrength, maxRecursionDepth - 1, simplex);
+  //   }
+  // }
+  #endregion
 
-  //   /**
-  //    *   This is the series of triangles we want to get
-  //    *
-  //    *         Arrangement           Triangle abbreviations
-  //    *                                  
-  //    *              /\                       *
-  //    *             /CC\                     / \
-  //    *            /    \                   / C \
-  //    *           /      \                 /_____\
-  //    *          /AC    BC\              / \     / \
-  //    *         /__________\            / A \ M / B \
-  //    *        /\BM      AM/\          /_____\ /_____\   
-  //    *       /CA\        /CB\
-  //    *      /    \      /    \
-  //    *     /      \    /      \
-  //    *    /AA    BA\CM/AB    BB\
-  //    *   /__________\/__________\
-  //    *
-  //    *   We arrange triangles in this way to make joining them a bit more sense.
-  //    *   
-  //    *   When joining edges, points on the edges around middle triangle are deduplicated
-  //    *   and points around the outer edges are concatenated. When deduplicating, we must
-  //    *   remember that points in edges of the inner (M) triangle are referenced in the 
-  //    *   opposite order than they are on the edges of the 
-  //    *
-  //   */
-
-
-  private void SubdivideFaceRecursively(PlanetCell cell, List<PlanetVertex> newVertices, List<PlanetCell> newFaces, List<PlanetCell> middleFaces, float radius, D20FaceEdge mainEdges, EdgeData outerEdges, int cacheSize, int iterations) {
-    Dictionary<long, int> vertexCache = new Dictionary<long, int>(cacheSize);
-
-    newVertices.Add(cell.a);
-    newVertices.Add(cell.b);
-    newVertices.Add(cell.c);
-
-    cell.ai = 0;
-    cell.bi = 1;
-    cell.ci = 2;
-
-    this.SubdivideFaceRecursively(cell, ref newVertices, newFaces, middleFaces, vertexCache, mainEdges, outerEdges, radius, iterations);
-  }
-
-  private void SubdivideFaceRecursively(PlanetCell cell, ref List<PlanetVertex> newVertices, List<PlanetCell> newFaces, List<PlanetCell> middleFaces, Dictionary<long, int> vertexCache, D20FaceEdge mainEdges, EdgeData outerEdges, float radius, int iterations) {
-    // Debug.WriteLine("edge: " + mainEdges + " --> " + (D20FaceEdge.AB | D20FaceEdge.BC));
-
-    if (iterations == 0) {
-      newFaces.Add(cell);
-
-      if (mainEdges == D20FaceEdge.NotAnEdge) {
-        return;
-      }
-      // if we're on the outer edge, we also add the face (not the vertex) to the outer edge structure
-      if ((mainEdges & D20FaceEdge.AB) != 0) {
-        outerEdges.abCells.Add(cell);
-      } 
-      if ((mainEdges & D20FaceEdge.BC) != 0) {
-        outerEdges.bcCells.Add(cell);
-      }
-      if ((mainEdges & D20FaceEdge.CA) != 0) {
-        outerEdges.acCells.Add(cell);
-      }
-
-      return;
-    }
-
-    int abIndex = this.SubdivideEdge(cell.ai, cell.bi, ref vertexCache, ref newVertices, radius);
-    int bcIndex = this.SubdivideEdge(cell.bi, cell.ci, ref vertexCache, ref newVertices, radius);
-    int caIndex = this.SubdivideEdge(cell.ci, cell.ai, ref vertexCache, ref newVertices, radius);
-
-    // Create four new faces and handle them recursively
-    PlanetCell va = new PlanetCell(
-    // vertices
-    cell.a,
-    newVertices[abIndex],
-    newVertices[caIndex],
-    // indices
-    cell.ai,
-    abIndex,
-    caIndex
-    );
-    PlanetCell vb = new PlanetCell(
-    // indices
-    newVertices[abIndex],
-    cell.b,
-    newVertices[bcIndex],
-    
-    // vertices
-    abIndex,
-    cell.bi,
-    bcIndex
-    );
-    PlanetCell vc = new PlanetCell(
-    // indices
-    newVertices[caIndex],
-    newVertices[bcIndex],
-    cell.c,
-
-    // vertices
-    caIndex,
-    bcIndex,
-    cell.ci
-    );
-    PlanetCell vm = new PlanetCell(
-    // indices
-    newVertices[bcIndex],
-    newVertices[caIndex],
-    newVertices[abIndex],
-
-    // vertices
-    bcIndex,
-    caIndex,
-    abIndex
-    );
-
-    SubdivideFaceRecursively(va, ref newVertices, newFaces, middleFaces, vertexCache, mainEdges & (D20FaceEdge.AB | D20FaceEdge.CA), outerEdges, radius, iterations - 1);
-    SubdivideFaceRecursively(vb, ref newVertices, newFaces, middleFaces, vertexCache, mainEdges & (D20FaceEdge.AB | D20FaceEdge.BC), outerEdges, radius, iterations - 1);
-    SubdivideFaceRecursively(vc, ref newVertices, newFaces, middleFaces, vertexCache, mainEdges & (D20FaceEdge.CA | D20FaceEdge.BC), outerEdges, radius, iterations - 1);
-
-    // Middle faces _always_ get a special mark. Since the previous three calls strip away MiddleFace bit, the final 
-    // level of recursion will only have "middle" leaf nodes marked. We store those nodes separately, since these
-    // "middle faces" duplicate points for topology. We still add them to the list, though, mostly because render
-    // still needs them (even if the topology doesn't)
-    SubdivideFaceRecursively(vm, ref newVertices, newFaces, middleFaces, vertexCache, D20FaceEdge.MiddleFace, outerEdges, radius, iterations - 1);
-  }
-
-  private void AddVertexIndexToCache(int index, ref Dictionary<long, int> vertexCache) {
-	vertexCache.Add(index, index);
-  }
-
-  private int SubdivideEdge(int indexA, int indexB, ref Dictionary<long, int> cache, ref List<PlanetVertex> vertices, float radius) {
-	long key;
-	int index;
-
-	if (indexA < indexB) {
-	  key = ((long)indexA << 32) + indexB;
-	} else {
-	  key = ((long)indexB << 32) + indexA;
-	}
-
-	if (cache.TryGetValue(key, out index)) {
-	  // System.Diagnostics.Debug.WriteLine("have index " + index + "in cache. Vertex get: [" + vertices[index].x + ", " + vertices[index].y + ", " + vertices[index].z + "]");
-	  return index;
-	}
-
-	try {
-	  PlanetVertex a = vertices[indexA];
-	  PlanetVertex b = vertices[indexB];
-
-	  // System.Diagnostics.Debug.WriteLine("Subdividing a: [" + a.x + ", " + a.y + ", " + a.z + "] and b [" + b.x + ", " + b.y + ", " + b.z + "]");
-
-
-	  PlanetVertex newVertex = new PlanetVertex(
-		(a.x + b.x) / 2f,
-		(a.y + b.y) / 2f,
-		(a.z + b.z) / 2f
-	  );
-	  newVertex.FixVertexPoint(radius);
-
-  	// System.Diagnostics.Debug.WriteLine("new vertex: [" + newVertex.x + ", " + newVertex.y + ", " + newVertex.z + "] will have index " + vertices.Count);
-
-	  index = vertices.Count;
-	  vertices.Add(newVertex);
-	  cache.Add(key, index);
-
-	  return index;
-	} catch (Exception e) {
-	  System.Diagnostics.Debug.WriteLine("indexA: " + indexA + "; index B: " + indexB + "; vertices size:" + vertices.Count + "; vertices cap: " + vertices.Capacity);
-	throw e;
-	}
-  }
 }

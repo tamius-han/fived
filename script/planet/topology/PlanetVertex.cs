@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using Biome;
 using Godot;
 
 namespace PlanetTopology {
@@ -19,6 +20,8 @@ namespace PlanetTopology {
 
     // displacement
     public float h;
+
+    public CellLandscapeType landscapeType;
 
     public Color determineVertexColor(float maxDepth, float maxHeight) {
       float normalizedH;
