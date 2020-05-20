@@ -2,3 +2,4 @@
 script/lib.ignore/
 .import/
 .mono/
+build/
