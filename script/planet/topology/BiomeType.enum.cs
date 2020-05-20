@@ -1,3 +1,5 @@
+using System.Collections.Generic;
+
 namespace Biome {
   public enum LandscapeType {
     Mountains = 1,
@@ -60,8 +62,8 @@ namespace Biome {
     //
     // The value of value should never be less than rarityFrom. This function doesn't check whether
     // that's correct — checks like that need to be implemented elsewhere, possibly in LandscapeTypeConf.
-    public float getHeightMultiplierForValue(float value) {
-      if (value > blendTo || prev == null) {
+    public float GetHeightMultiplierForValue(float value) {
+      if (value >= blendTo || prev == null) {
         return this.heightMultiplier;
       } else {
         // Move value from [rarityFrom, blendTo] to [0, 1] for convenience
@@ -74,7 +76,56 @@ namespace Biome {
   }
 
   public class LandscapeTypeConf {
+    public List<LandscapeTypeConfObject> landscapeTypeGradient;
 
+    public LandscapeTypeConf() {
+      this.landscapeTypeGradient = new List<LandscapeTypeConfObject>();
+    }
+    public LandscapeTypeConf(List<LandscapeTypeConfObject> confObjects) {
+      this.landscapeTypeGradient = confObjects;
+    }
+
+    public void AddTypeConf(LandscapeTypeConfObject confObject) {
+      if (this.landscapeTypeGradient.Count > 0) {
+        confObject.prev = this.landscapeTypeGradient[this.landscapeTypeGradient.Count - 1];
+      }
+      this.landscapeTypeGradient.Add(confObject);
+    }
+    public void AddTypeConf(LandscapeType type, float rarityFrom, float blendDistance, float heightMultiplier) {
+      if (this.landscapeTypeGradient.Count > 0) {
+        this.landscapeTypeGradient.Add(new LandscapeTypeConfObject(type, rarityFrom, blendDistance, heightMultiplier, this.landscapeTypeGradient[this.landscapeTypeGradient.Count - 1]));
+      } else {
+        this.landscapeTypeGradient.Add(new LandscapeTypeConfObject(type, rarityFrom, blendDistance, heightMultiplier));
+      }
+    }
+
+    // get gradient:
+    public float GetHeightMultiplierForValue(float value) {
+      int i = this.landscapeTypeGradient.Count;
+
+      if (i == 0) {
+        return 1.0f;
+      }
+
+      // Let's take our gradient list. It goes like this:
+      // 
+      //      0.0 --> 0.4 --> 0.6 --> 1.0
+      // 
+      // Our height type multipliers are:
+      //       |-[A]-->|-[B]-->|-[C]-->|-[D]-->
+      //
+      // We get passed a value of 0.5, which belongs to the 'B' segment.
+      // This means that we need to return multiplier from the first 
+      // segment where <value> becomes greater than rarityFrom
+
+      while (i --> 0) {
+        if (value > this.landscapeTypeGradient[i].rarityFrom) {
+          return this.landscapeTypeGradient[i].GetHeightMultiplierForValue(value);
+        }
+      }
+
+      return this.landscapeTypeGradient[0].GetHeightMultiplierForValue(value);
+    }
   }
 
   public class CellLandscapeType {

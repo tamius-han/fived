@@ -84,11 +84,15 @@ public class PlanetGenerator {
     int cpuCores = System.Environment.ProcessorCount;
     OpenSimplexNoise simplex = new OpenSimplexNoise();
 
-    List<LandscapeTypeConf> landscapeConf = new List<LandscapeTypeConf>();
-    landscapeConf.Add(new LandscapeTypeConf(LandscapeType.Plains, 0.0f, 0.6f));
-    landscapeConf.Add(new LandscapeTypeConf(LandscapeType.Hills, 0.6f, 0.9f));
-    landscapeConf.Add(new LandscapeTypeConf(LandscapeType.Mountains, 0.9f, 1.0f));
-
+    // NOTE — these must be provided in correct order!
+    LandscapeTypeConf landscapeConf = new LandscapeTypeConf();
+    landscapeConf.AddTypeConf(LandscapeType.Plains, 0.0f, 0.0f, 0.2f);
+    landscapeConf.AddTypeConf(LandscapeType.Hills, 0.3f, 0.05f, 0.6f);
+    landscapeConf.AddTypeConf(LandscapeType.Hills, 0.4f, 0.1f, 0.8f);
+    landscapeConf.AddTypeConf(LandscapeType.Mountains, 0.6f, 0.069f, 2.5f);
+    landscapeConf.AddTypeConf(LandscapeType.Mountains, 0.7f, 0.69f, 4.3f);
+    landscapeConf.AddTypeConf(LandscapeType.Mountains, 0.9f, 0.69f, 8.3f);
+    landscapeConf.AddTypeConf(LandscapeType.Mountains, 1.7f, 0.69f, 33.3f);
 
     int seed = 69420;
     int octaves = 8;
@@ -115,17 +119,11 @@ public class PlanetGenerator {
         maxI = vertices.Count;
       }
       float displacement, displacementMultiplier;
-      LandscapeType type;
 
       for (int j = i * step; j < maxI; j++) {
         displacement = simplex.GetNoise3d(vertices[j].x, vertices[j].y, vertices[j].z);
         
-        getDisplacementGradient(
-          landscapeConf,
-          (landscapeTypeSimplex.GetNoise3d(vertices[j].x, vertices[j].y, vertices[j].z) + 1f) * 0.5f,
-          out type,
-          out displacementMultiplier
-        );
+        displacementMultiplier = landscapeConf.GetHeightMultiplierForValue((landscapeTypeSimplex.GetNoise3d(vertices[j].x, vertices[j].y, vertices[j].z) + 1f) * 0.5f);
 
         Vector3 tmp = new Vector3(vertices[j].x, vertices[j].y, vertices[j].z);
         Vector3 vecDisplacement = (new Vector3(vertices[j].x, vertices[j].y, vertices[j].z) / tmp.Length()) * displacement * displacementMultiplier;
@@ -134,45 +132,7 @@ public class PlanetGenerator {
       }
     });
 
-
-
-
     return vertices;
-  }
-
-  public void getDisplacementGradient(List<LandscapeTypeConf> gradient, float rng, out LandscapeType type, out float perlinMultiplier) {
-    int i = 0;
-
-    // this loop goes one too far, always. We subtract 1 from final result
-    while (i < gradient.Count && rng < gradient[i].rarityTo) {
-      i++;
-    }
-    // i--;
-
-    // these two can be optimized away cos above sentence aint right
-    if (i < 0) {
-      i = 0;
-    }
-    if (i >= gradient.Count) {
-      i = gradient.Count - 1;
-    }
-
-    type = gradient[i].type;
-    
-    if(rng > 0.6f) {
-      perlinMultiplier = 2.337f;
-      return;
-    }
-    if(rng > 0.45f) {
-      perlinMultiplier = 1.0f;
-      return;
-    }
-    if(rng > 0.1f) {
-      perlinMultiplier = 0.2f;
-      return;
-    }
-    perlinMultiplier = 0.1f;
-    return;
   }
 
   public void DisplacePoles() {
