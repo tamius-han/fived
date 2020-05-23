@@ -1,9 +1,9 @@
 [gd_scene load_steps=13 format=2]
 
-[ext_resource path="res://resources/fonts/JosefinSans/resources/JosefinSans_thin.tres" type="DynamicFont" id=1]
-[ext_resource path="res://resources/fonts/JosefinSans/resources/JosefinSans_regular.tres" type="DynamicFont" id=2]
-[ext_resource path="res://ui/main-menu/StartButton.cs" type="Script" id=3]
-[ext_resource path="res://ui/main-menu/Quit.cs" type="Script" id=4]
+[ext_resource path="res://ui/main-menu/Quit.cs" type="Script" id=1]
+[ext_resource path="res://ui/main-menu/StartButton.cs" type="Script" id=2]
+[ext_resource path="res://resources/fonts/JosefinSans/resources/JosefinSans_regular.tres" type="DynamicFont" id=3]
+[ext_resource path="res://resources/fonts/JosefinSans/resources/JosefinSans_thin.tres" type="DynamicFont" id=4]
 
 [sub_resource type="DynamicFontData" id=1]
 font_path = "res://resources/fonts/JosefinSans/fonts/JosefinSans-Italic.ttf"
@@ -48,20 +48,6 @@ __meta__ = {
 "_edit_use_anchors_": false
 }
 
-[node name="ColorRect" type="ColorRect" parent="."]
-anchor_left = 4096.0
-anchor_right = 4096.0
-margin_left = 4096.13
-margin_top = 0.0212073
-margin_right = 8192.13
-margin_bottom = 4096.02
-size_flags_horizontal = 3
-size_flags_vertical = 3
-color = Color( 0, 0, 0, 1 )
-__meta__ = {
-"_edit_use_anchors_": false
-}
-
 [node name="MarginContainer" type="MarginContainer" parent="."]
 anchor_right = 1.0
 anchor_bottom = 1.0
@@ -80,7 +66,7 @@ margin_bottom = 440.0
 [node name="Label" type="Label" parent="MarginContainer/VBoxContainer"]
 margin_right = 864.0
 margin_bottom = 96.0
-custom_fonts/font = ExtResource( 1 )
+custom_fonts/font = ExtResource( 4 )
 custom_colors/font_color = Color( 0.917647, 0.792157, 0.568627, 1 )
 text = "Voshatâr"
 align = 1
@@ -113,7 +99,7 @@ custom_fonts/font = SubResource( 2 )
 custom_colors/font_color_hover = Color( 1, 0.6, 0.6, 1 )
 text = "              "
 flat = true
-script = ExtResource( 3 )
+script = ExtResource( 2 )
 
 [node name="VBoxContainer" type="VBoxContainer" parent="MarginContainer/VBoxContainer/MarginContainer/VBoxContainer/Start"]
 anchor_right = 1.0
@@ -127,7 +113,7 @@ __meta__ = {
 margin_top = 7.0
 margin_right = 208.0
 margin_bottom = 31.0
-custom_fonts/font = ExtResource( 2 )
+custom_fonts/font = ExtResource( 3 )
 text = "Oshfushog"
 align = 1
 
@@ -163,7 +149,7 @@ __meta__ = {
 margin_top = 7.0
 margin_right = 208.0
 margin_bottom = 31.0
-custom_fonts/font = ExtResource( 2 )
+custom_fonts/font = ExtResource( 3 )
 text = "Baupûk"
 align = 1
 
@@ -186,7 +172,7 @@ custom_fonts/font = SubResource( 8 )
 custom_constants/hseparation = 30
 text = "              "
 flat = true
-script = ExtResource( 4 )
+script = ExtResource( 1 )
 
 [node name="VBoxContainer" type="VBoxContainer" parent="MarginContainer/VBoxContainer/MarginContainer/VBoxContainer/Quit"]
 anchor_right = 1.0
@@ -200,7 +186,7 @@ __meta__ = {
 margin_top = 7.0
 margin_right = 208.0
 margin_bottom = 31.0
-custom_fonts/font = ExtResource( 2 )
+custom_fonts/font = ExtResource( 3 )
 text = "Gukîm"
 align = 1
 
