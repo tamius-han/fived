@@ -63,6 +63,8 @@
     <Compile Include="script\planet\topology\PlanetCell.cs" />
     <Compile Include="script\planet\topology\PlanetData.cs" />
     <Compile Include="script\planet\topology\PlanetVertex.cs" />
+    <Compile Include="ui\main-menu\Quit.cs" />
+    <Compile Include="ui\main-menu\StartButton.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
 </Project>
