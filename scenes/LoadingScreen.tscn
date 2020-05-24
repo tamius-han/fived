@@ -1,0 +1,95 @@
+[gd_scene load_steps=7 format=2]
+
+[ext_resource path="res://resources/fonts/JosefinSans/fonts/JosefinSans-Thin.ttf" type="DynamicFontData" id=1]
+[ext_resource path="res://resources/ui-elements/loading-bar.png" type="Texture" id=2]
+[ext_resource path="res://resources/fonts/JosefinSans/fonts/JosefinSans-Regular.ttf" type="DynamicFontData" id=3]
+
+[sub_resource type="DynamicFont" id=1]
+size = 42
+font_data = ExtResource( 1 )
+
+[sub_resource type="DynamicFont" id=2]
+size = 24
+font_data = ExtResource( 1 )
+
+[sub_resource type="DynamicFont" id=3]
+size = 10
+font_data = ExtResource( 3 )
+
+[node name="Control" type="Control"]
+anchor_right = 1.0
+anchor_bottom = 1.0
+__meta__ = {
+"_edit_use_anchors_": false
+}
+
+[node name="ColorRect" type="ColorRect" parent="."]
+anchor_right = 1.0
+anchor_bottom = 1.0
+color = Color( 0, 0, 0, 1 )
+__meta__ = {
+"_edit_use_anchors_": false
+}
+
+[node name="MarginContainer" type="MarginContainer" parent="."]
+anchor_left = 0.0390625
+anchor_top = 0.0666667
+anchor_right = 0.960938
+anchor_bottom = 0.933333
+margin_top = -3.8147e-06
+size_flags_horizontal = 3
+__meta__ = {
+"_edit_use_anchors_": true
+}
+
+[node name="VBoxContainer" type="VBoxContainer" parent="MarginContainer"]
+margin_right = 944.0
+margin_bottom = 520.0
+size_flags_horizontal = 3
+__meta__ = {
+"_edit_use_anchors_": false
+}
+
+[node name="MarginContainer" type="MarginContainer" parent="MarginContainer/VBoxContainer"]
+margin_right = 944.0
+margin_bottom = 421.0
+size_flags_horizontal = 3
+custom_constants/margin_top = 300
+
+[node name="VBoxContainer" type="VBoxContainer" parent="MarginContainer/VBoxContainer/MarginContainer"]
+margin_top = 300.0
+margin_right = 944.0
+margin_bottom = 421.0
+size_flags_horizontal = 3
+
+[node name="LoadingLabel" type="Label" parent="MarginContainer/VBoxContainer/MarginContainer/VBoxContainer"]
+margin_right = 944.0
+margin_bottom = 43.0
+custom_fonts/font = SubResource( 1 )
+text = "Loading label"
+
+[node name="LoadingLabelSmall" type="Label" parent="MarginContainer/VBoxContainer/MarginContainer/VBoxContainer"]
+margin_top = 47.0
+margin_right = 944.0
+margin_bottom = 71.0
+custom_fonts/font = SubResource( 2 )
+text = "Loading label small"
+
+[node name="TextureProgress2" type="TextureProgress" parent="MarginContainer/VBoxContainer/MarginContainer/VBoxContainer"]
+margin_top = 75.0
+margin_right = 944.0
+margin_bottom = 78.0
+size_flags_horizontal = 3
+value = 100.0
+texture_progress = ExtResource( 2 )
+tint_progress = Color( 0.956863, 0.87451, 0.717647, 1 )
+
+[node name="Label" type="Label" parent="MarginContainer/VBoxContainer/MarginContainer/VBoxContainer"]
+margin_top = 82.0
+margin_right = 944.0
+margin_bottom = 121.0
+custom_fonts/font = SubResource( 3 )
+custom_colors/font_color = Color( 0.572549, 0.505882, 0.372549, 1 )
+text = "Current thing that's being calculated goes here
+
+"
