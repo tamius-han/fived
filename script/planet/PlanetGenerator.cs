@@ -18,8 +18,15 @@ using System.Threading.Tasks;
 
 public class PlanetGenerator {
   
+  public string currentStatus = "";
+
   public PlanetData[] GenerateBaseTopology(int subdivisionIterations, float radius){
     D20 baseGeometry = new D20(radius);
+    
+    // variables for progress display
+    // int totalVertices = 3 * (int)Math.Pow(2, subdivisionIterations + 1) * 20;
+    // int[] currentVertices[] = new int[20];
+
 
     List<PlanetCell> faces = new List<PlanetCell>(baseGeometry.faces);
 

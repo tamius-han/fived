@@ -31,7 +31,7 @@ __meta__ = {
 "_edit_use_anchors_": false
 }
 
-[node name="MarginContainer" type="MarginContainer" parent="."]
+[node name="Root" type="MarginContainer" parent="."]
 anchor_left = 0.0390625
 anchor_top = 0.0666667
 anchor_right = 0.960938
@@ -42,40 +42,40 @@ __meta__ = {
 "_edit_use_anchors_": true
 }
 
-[node name="VBoxContainer" type="VBoxContainer" parent="MarginContainer"]
+[node name="MainLayout" type="VBoxContainer" parent="Root"]
 margin_right = 944.0
-margin_bottom = 520.0
+margin_bottom = 519.0
 size_flags_horizontal = 3
 __meta__ = {
 "_edit_use_anchors_": false
 }
 
-[node name="MarginContainer" type="MarginContainer" parent="MarginContainer/VBoxContainer"]
+[node name="Inner" type="MarginContainer" parent="Root/MainLayout"]
 margin_right = 944.0
 margin_bottom = 421.0
 size_flags_horizontal = 3
 custom_constants/margin_top = 300
 
-[node name="VBoxContainer" type="VBoxContainer" parent="MarginContainer/VBoxContainer/MarginContainer"]
+[node name="LoadingLayout" type="VBoxContainer" parent="Root/MainLayout/Inner"]
 margin_top = 300.0
 margin_right = 944.0
 margin_bottom = 421.0
 size_flags_horizontal = 3
 
-[node name="LoadingLabel" type="Label" parent="MarginContainer/VBoxContainer/MarginContainer/VBoxContainer"]
+[node name="LoadingLabel" type="Label" parent="Root/MainLayout/Inner/LoadingLayout"]
 margin_right = 944.0
 margin_bottom = 43.0
 custom_fonts/font = SubResource( 1 )
 text = "Loading label"
 
-[node name="LoadingLabelSmall" type="Label" parent="MarginContainer/VBoxContainer/MarginContainer/VBoxContainer"]
+[node name="LoadingLabelSmall" type="Label" parent="Root/MainLayout/Inner/LoadingLayout"]
 margin_top = 47.0
 margin_right = 944.0
 margin_bottom = 71.0
 custom_fonts/font = SubResource( 2 )
 text = "Loading label small"
 
-[node name="TextureProgress2" type="TextureProgress" parent="MarginContainer/VBoxContainer/MarginContainer/VBoxContainer"]
+[node name="TextureProgress2" type="TextureProgress" parent="Root/MainLayout/Inner/LoadingLayout"]
 margin_top = 75.0
 margin_right = 944.0
 margin_bottom = 78.0
@@ -84,7 +84,7 @@ value = 100.0
 texture_progress = ExtResource( 2 )
 tint_progress = Color( 0.956863, 0.87451, 0.717647, 1 )
 
-[node name="Label" type="Label" parent="MarginContainer/VBoxContainer/MarginContainer/VBoxContainer"]
+[node name="CurrentStatus" type="Label" parent="Root/MainLayout/Inner/LoadingLayout"]
 margin_top = 82.0
 margin_right = 944.0
 margin_bottom = 121.0
