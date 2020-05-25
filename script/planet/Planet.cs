@@ -19,8 +19,12 @@ public class Planet : MeshInstance {
   [Export]
   private ArrayMesh planetMesh;
 
+  
+  private String currentStatus;
+  private Boolean isGenerated;
+  private PlanetGenerator pg;
 
-
+  private Label progressLabel;
 
   // private static int subdivide(List<Vector3> vertices, int point1Index, int point2Index)
   // {
@@ -29,16 +33,31 @@ public class Planet : MeshInstance {
 
   // Called when the node enters the scene tree for the first time.
   public override void _Ready() {
-	  GenerateSphere(7);
+    StartGenerate(9);
+	  // GenerateSphere(7);
 	  // GenerateSphere(9);
   }
 
   //  // Called every frame. 'delta' is the elapsed time since the previous frame.
    public override void _Process(float delta) {
-     Debug.Write(".");
      RotateX(delta/ 24);
      RotateY(delta / 8);
+
+     //if (!this.isGenerated) {
+     //  this.progressLabel.Text = currentStatus;
+     //}
    }
+
+  public void StartGenerate(int subdivisions) {
+    this.pg = new PlanetGenerator();
+    this.isGenerated = false;
+    // this.progressLabel = (Label)GetNode("DefaultScene/LoadingScreen/Root/MainLayout/Inner/LoadingLayout/CurrentStatus");
+
+    // FindN
+
+    System.Threading.Thread t = new System.Threading.Thread(() => GenerateSphere(subdivisions));
+    t.Start();
+  }
 
   // Generates sphere with radius 1
   public void GenerateSphere(int iterations) {
@@ -48,8 +67,6 @@ public class Planet : MeshInstance {
     Stopwatch totalTimer = new Stopwatch();
     totalTimer.Start();
     
-    
-
     SurfaceTool surfaceTool = new SurfaceTool();
     this.planetMesh = new ArrayMesh();
 
@@ -61,8 +78,8 @@ public class Planet : MeshInstance {
     Stopwatch planetGeneratorTimer = new Stopwatch();
     planetGeneratorTimer.Start();
 
-    PlanetGenerator pg = new PlanetGenerator();
     // 9 gives ~30s generate time, which is acceptable
+    this.currentStatus = "Generating base topology (this step can take long!)";
     PlanetData[] planetData = pg.GenerateBaseTopology(iterations, radius);
     // PlanetData[] planetData = pg.GenerateBaseTopology(8);
 
@@ -75,6 +92,8 @@ public class Planet : MeshInstance {
     // Add perlino
     Stopwatch perlinTimer = new Stopwatch();
     perlinTimer.Start();
+
+    this.currentStatus = "Adding perlin noise ...";
 
     foreach (PlanetData data in planetData) {
       data.vertices = pg.AddPerlinDisplacement(data.vertices, radius, 16, 0.42f);
@@ -99,6 +118,8 @@ public class Planet : MeshInstance {
     Stopwatch surfaceToolTimer = new Stopwatch();
     surfaceToolTimer.Start();
 
+    this.currentStatus = "Building planet mesh ...";
+
     foreach (PlanetData data in planetData) {
       foreach (PlanetCell c in data.faces) {
         c.AddToSurfaceTool(surfaceTool);
@@ -122,5 +143,6 @@ public class Planet : MeshInstance {
     System.Diagnostics.Debug.WriteLine("————————————————— total time needed: " + ts.Minutes + "m " + ts.Seconds + "." + ts.Milliseconds + "—————————————————");
 
     this.Mesh = planetMesh;
+    this.currentStatus = "";
   }
 }
