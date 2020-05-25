@@ -35,8 +35,9 @@ public class PlanetGenerator {
     List<PlanetCell>[] newFaces = new List<PlanetCell>[20];
     List<PlanetCell>[] middleFaces = new List<PlanetCell>[20];
     for (int i = 0; i < newFaces.Length; i++) {
-      newFaces[i] = new List<PlanetCell>(3 * (int)Math.Pow(2, subdivisionIterations + 1));
-      middleFaces[i] = new List<PlanetCell>((int)Math.Pow(2, subdivisionIterations + 1));
+      newFaces[i] = new List<PlanetCell>(4 * (int)Math.Pow(2, subdivisionIterations + 1));
+      // middleFaces[i] = new List<PlanetCell>((int)Math.Pow(2, subdivisionIterations + 1));
+      middleFaces[i] = new List<PlanetCell>(0);
     }
 
     EdgeData[] edgeCells = new EdgeData[20];
