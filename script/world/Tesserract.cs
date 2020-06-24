@@ -1,28 +1,30 @@
 using Godot;
 using System;
 
-public class TesserractData {
+public class Tesserract {
   public string name;
   public PenteractFace position;
-  public PlanetData[] planets;
+  public Planet[] planets;
 
-  public TesserractData() {
-    this.planets = new PlanetData[8];
+  public float baseTemp;
+
+  public Tesserract() {
+    this.planets = new Planet[8];
 
     // initialize planets:
     for (int i = 0; i < 8; i++) {
-      this.planets[i] = new PlanetData((PenteractFace)i);
+      this.planets[i] = new Planet((PenteractFace)i);
     }
 
     // Set up graph of all possible connections
     this.CreatePlanetGraph();
   }
 
-  public TesserractData(PenteractFace position) : this() {
+  public Tesserract(PenteractFace position) : this() {
     this.position = position;
   }
 
-  public void SetConnectionTo(PenteractFace planetPositionFrom, PenteractFace planetPositionTo, TesserractData target) {
+  public void SetConnectionTo(PenteractFace planetPositionFrom, PenteractFace planetPositionTo, Tesserract target) {
     this.planets[(int)planetPositionFrom].SetConnectionTo(PlanetConnection.Twin, target.planets[(int)planetPositionTo]);
   }
 

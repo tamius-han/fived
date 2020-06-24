@@ -20,7 +20,7 @@ public class PlanetGenerator {
   
   public string currentStatus = "";
 
-  public PlanetData[] GenerateBaseTopology(int subdivisionIterations, float radius){
+  public PlanetTopologyData[] GenerateBaseTopology(int subdivisionIterations, float radius){
     D20 baseGeometry = new D20(radius);
     
     // variables for progress display
@@ -52,7 +52,7 @@ public class PlanetGenerator {
       edgeCells[i] = new EdgeData(subdivisionIterations);
     }
 
-    PlanetData[] data = new PlanetData[20];
+    PlanetTopologyData[] data = new PlanetTopologyData[20];
     
     Stopwatch planetGeneratorTimer = new Stopwatch();
     planetGeneratorTimer.Start();
@@ -65,7 +65,7 @@ public class PlanetGenerator {
       for (int ci = 0; ci < newFaces[i].Count; ci++) {
         newFaces[i][ci].SetNeighbors();
       }
-      data[i] = new PlanetData(vertices[i], newFaces[i], middleFaces[i], edgeCells[i]);
+      data[i] = new PlanetTopologyData(vertices[i], newFaces[i], middleFaces[i], edgeCells[i]);
     });
 
     planetGeneratorTimer.Stop();

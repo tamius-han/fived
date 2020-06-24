@@ -7,7 +7,7 @@ using System.Diagnostics;
 using static Godot.Mesh;
 using static Godot.SpatialMaterial;
 
-public class Planet : MeshInstance {
+public class PlanetTerrain : MeshInstance {
   // Declare member variables here. Examples:
   // private int a = 2;
   // private string b = "text";
@@ -80,8 +80,8 @@ public class Planet : MeshInstance {
 
     // 9 gives ~30s generate time, which is acceptable
     this.currentStatus = "Generating base topology (this step can take long!)";
-    PlanetData[] planetData = pg.GenerateBaseTopology(iterations, radius);
-    // PlanetData[] planetData = pg.GenerateBaseTopology(8);
+    PlanetTopologyData[] planetData = pg.GenerateBaseTopology(iterations, radius);
+    // PlanetTopologyData[] planetData = pg.GenerateBaseTopology(8);
 
     planetGeneratorTimer.Stop();
     TimeSpan ts = planetGeneratorTimer.Elapsed;
@@ -95,7 +95,7 @@ public class Planet : MeshInstance {
 
     this.currentStatus = "Adding perlin noise ...";
 
-    foreach (PlanetData data in planetData) {
+    foreach (PlanetTopologyData data in planetData) {
       data.vertices = pg.AddPerlinDisplacement(data.vertices, radius, 16, 0.42f);
 
       float maxDispalcement = 0;
@@ -120,7 +120,7 @@ public class Planet : MeshInstance {
 
     this.currentStatus = "Building planet mesh ...";
 
-    foreach (PlanetData data in planetData) {
+    foreach (PlanetTopologyData data in planetData) {
       foreach (PlanetCell c in data.faces) {
         c.AddToSurfaceTool(surfaceTool);
       }

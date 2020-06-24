@@ -3,7 +3,7 @@ using System;
 using System.Collections.Generic;
 
 namespace PlanetTopology {
-  public class PlanetData {
+  public class PlanetTopologyData {
 
     // List of edge cells contain _all_ cells between two vertices (except the second vertex)
     // e.g. abEdgeVertices contains all vertices between vertex A and B, including A and excluding B.
@@ -13,7 +13,7 @@ namespace PlanetTopology {
     public List<PlanetCell> middleFaces;
     public EdgeData edgeCells;
 
-    public PlanetData(List<PlanetVertex> vertices, List<PlanetCell> faces, List<PlanetCell> middleFaces, EdgeData edgeCells) {
+    public PlanetTopologyData(List<PlanetVertex> vertices, List<PlanetCell> faces, List<PlanetCell> middleFaces, EdgeData edgeCells) {
       this.vertices = vertices;
       this.faces = faces;
       this.middleFaces = middleFaces;

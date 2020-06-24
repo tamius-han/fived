@@ -2,7 +2,7 @@
 
 [ext_resource path="res://test material.tres" type="Material" id=1]
 [ext_resource path="res://script/Camera/CameraControl.gd" type="Script" id=2]
-[ext_resource path="res://script/planet/Planet.cs" type="Script" id=3]
+[ext_resource path="res://script/planet-terrain/PlanetTerrain.cs" type="Script" id=3]
 [ext_resource path="res://scenes/LoadingScreen.tscn" type="PackedScene" id=4]
 
 [node name="DefaultScene" type="Spatial"]

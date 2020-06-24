@@ -18,33 +18,33 @@ public enum PlanetConnectionState {
   TemporarilyDisabled = -1
 }
 
-public class PlanetData {
+public class Planet {
   public string name;
   public float radius;
   public PenteractFace position;
 
-  public PlanetData[] connections;
+  public Planet[] connections;
   public PlanetConnectionState[] connectionStates;
   
 
   
-  public TesserractData tesserract;
+  public Tesserract tesserract;
 
-  public PlanetData() {
-    this.connections = new PlanetData[7];
+  public Planet() {
+    this.connections = new Planet[7];
     this.connectionStates = new PlanetConnectionState[7];
   }
-  public PlanetData(PenteractFace position) : this() {
+  public Planet(PenteractFace position) : this() {
     this.position = position;
   }
 
-  public void SetConnectionTo(PlanetConnection connection, PlanetData planet) {
+  public void SetConnectionTo(PlanetConnection connection, Planet planet) {
     this.connections[(int)connection] = planet;
     planet.SetConnectionFrom(connection, this);
   }
 
   // add connection that originates at [connection point] on [planet]
-  public void SetConnectionFrom(PlanetConnection connection, PlanetData planet) {
+  public void SetConnectionFrom(PlanetConnection connection, Planet planet) {
     if (connection == PlanetConnection.Twin) {
       this.connections[(int)PlanetConnection.Twin] = planet;
     } else {

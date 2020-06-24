@@ -16,13 +16,24 @@ public enum PenteractFace : byte {
   DoubleOuter = 9   // |++——— faces for 5D
 }
 
-public class PenteractData {
-  public TesserractData[] tesserracts;
 
-  public PenteractData() {
-    this.tesserracts = new TesserractData[10];
+
+public class PenteractOptions {
+  public float tempsFrom;
+  public float tempsTo;
+  
+
+}
+
+public class Penteract {
+  public Tesserract[] tesserracts;
+
+  public PenteractOptions options;
+
+  public Penteract() {
+    this.tesserracts = new Tesserract[10];
     for (int i = 0; i < 10; i++) {
-      this.tesserracts[i] = new TesserractData((PenteractFace)i);
+      this.tesserracts[i] = new Tesserract((PenteractFace)i);
     }
 
     // constructor for tesserract data already created planet graph,
@@ -36,7 +47,7 @@ public class PenteractData {
   // dimension
   public void CreateTesserractGraph() {
     // Each tesserract is connected to 8 different planets.
-    // Just like with GeneratePlanetGraph() in TesserractData,
+    // Just like with GeneratePlanetGraph() in Tesserract,
     // connection to self leads to DoubleOuter and connection
     // to the opposite leads to DoubleInner.
 
@@ -77,5 +88,9 @@ public class PenteractData {
       // This function call thus translates to:
       // northTesserract.northPlanet <----> doubleOuterTesserract.southPlanet
     }
+  }
+
+  public void SetPenteractOptions() {
+
   }
 }
