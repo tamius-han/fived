@@ -97,10 +97,10 @@ public class PlanetGenerator {
     landscapeConf.AddTypeConf(LandscapeType.Plains, 0.0f, 0.0f, 0.2f);
     landscapeConf.AddTypeConf(LandscapeType.Hills, 0.3f, 0.05f, 0.6f);
     landscapeConf.AddTypeConf(LandscapeType.Hills, 0.4f, 0.1f, 0.8f);
-    landscapeConf.AddTypeConf(LandscapeType.Mountains, 0.6f, 0.069f, 2.5f);
-    landscapeConf.AddTypeConf(LandscapeType.Mountains, 0.7f, 0.69f, 4.3f);
-    landscapeConf.AddTypeConf(LandscapeType.Mountains, 0.9f, 0.69f, 8.3f);
-    landscapeConf.AddTypeConf(LandscapeType.Mountains, 1.7f, 0.69f, 33.3f);
+    landscapeConf.AddTypeConf(LandscapeType.Mountains, 0.6f, 0.069f, 1.25f);
+    landscapeConf.AddTypeConf(LandscapeType.Mountains, 0.7f, 0.69f, 2.5f);
+    landscapeConf.AddTypeConf(LandscapeType.Mountains, 0.9f, 0.69f, 3.3f);
+    landscapeConf.AddTypeConf(LandscapeType.Mountains, 1.7f, 0.69f, 5.0f);
 
     int seed = 69420;
     int octaves = 8;
@@ -130,6 +130,10 @@ public class PlanetGenerator {
 
       for (int j = i * step; j < maxI; j++) {
         displacement = simplex.GetNoise3d(vertices[j].x, vertices[j].y, vertices[j].z);
+
+        // this guarantees mountain ridges. 
+        // Note that the correct function is 1 - abs(x), but we're using smaller numbers in order to guarantee seas
+        displacement = 0.2f - (displacement < 0 ? -displacement: displacement);
         
         displacementMultiplier = landscapeConf.GetHeightMultiplierForValue((landscapeTypeSimplex.GetNoise3d(vertices[j].x, vertices[j].y, vertices[j].z) + 1f) * 0.5f);
 
