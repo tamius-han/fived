@@ -20,7 +20,7 @@ public class PlanetGenerator {
   
   public string currentStatus = "";
 
-  public PlanetTopologyData[] GenerateBaseTopology(int subdivisionIterations, float radius){
+  public PlanetTopologyData[] GenerateBaseTopologyRecursive(int subdivisionIterations, float radius){
     D20 baseGeometry = new D20(radius);
     
     // variables for progress display
@@ -58,6 +58,7 @@ public class PlanetGenerator {
     planetGeneratorTimer.Start();
 
     // subdivide faces
+    // Parallel.For(0, faces.Count, new ParallelOptions {MaxDegreeOfParallelism = cpuCores}, i => {
     Parallel.For(0, faces.Count, new ParallelOptions {MaxDegreeOfParallelism = cpuCores}, i => {
       SubdivideFaceRecursively(faces[i], vertices[i], newFaces[i], middleFaces[i], radius, (D20FaceEdge.AB | D20FaceEdge.BC | D20FaceEdge.CA | D20FaceEdge.MiddleFace), edgeCells[i], vertices[i].Capacity, subdivisionIterations);
 
@@ -83,6 +84,63 @@ public class PlanetGenerator {
     stitchTimer.Stop();
     ts = stitchTimer.Elapsed;
     System.Diagnostics.Debug.WriteLine("Time needed for stitching: " + ts.Minutes + "m " + ts.Seconds + "." + ts.Milliseconds);
+
+
+    return data;
+  }
+
+  public PlanetTopologyData[] GenerateBaseTopology(int subdivisions, float radius){
+    D20 baseGeometry = new D20(radius);
+    
+    // variables for progress display
+    // int totalVertices = 3 * (int)Math.Pow(2, subdivisionIterations + 1) * 20;
+    // int[] currentVertices[] = new int[20];
+
+    List<PlanetCell> startingFaces = new List<PlanetCell>(baseGeometry.faces);
+
+    // Since we'll do lots and lots o' topology, it would be beneficial if we parallelize
+    // certain things. We'll do this optimization later.
+    int cpuCores = System.Environment.ProcessorCount;
+
+    List<PlanetVertex>[] vertices = new List<PlanetVertex>[20];
+    List<PlanetCell>[] faces = new List<PlanetCell>[20];
+
+    PlanetTopologyData[] data = new PlanetTopologyData[20];
+    
+    Stopwatch planetGeneratorTimer = new Stopwatch();
+    planetGeneratorTimer.Start();
+
+    // subdivide faces
+    Parallel.For(0, startingFaces.Count, new ParallelOptions {MaxDegreeOfParallelism = cpuCores}, i => {
+      object[] result = SubdivideFace(startingFaces[i], subdivisions, radius);
+
+      vertices[i] = (List<PlanetVertex>)result[0];
+      faces[i] = (List<PlanetCell>)result[1];
+
+      // neighbors need to be processed _after_ we've finished subdividing faces. We can't do that during subdivisions.
+      for (int ci = 0; ci < faces[i].Count; ci++) {
+        faces[i][ci].SetNeighbors();
+      }
+      data[i] = new PlanetTopologyData(vertices[i], faces[i]);
+    });
+
+    planetGeneratorTimer.Stop();
+    TimeSpan ts = planetGeneratorTimer.Elapsed;
+    System.Diagnostics.Debug.WriteLine("Time needed for subdivisions: " + ts.Minutes + "m " + ts.Seconds + "." + ts.Milliseconds);
+
+    // stitch faces together
+    // TODO
+
+    // Stopwatch stitchTimer = new Stopwatch();
+    // stitchTimer.Start();
+    // object stitchLock = new object();
+    // Parallel.For(0, faces.Count - 1,  new ParallelOptions {MaxDegreeOfParallelism = cpuCores}, i => {
+    //   StitchEdgeBruteForce(i, edgeCells, stitchLock);
+    // });
+
+    // stitchTimer.Stop();
+    // ts = stitchTimer.Elapsed;
+    // System.Diagnostics.Debug.WriteLine("Time needed for stitching: " + ts.Minutes + "m " + ts.Seconds + "." + ts.Milliseconds);
 
 
     return data;
@@ -311,50 +369,276 @@ public class PlanetGenerator {
   }
 
   private void AddVertexIndexToCache(int index, ref Dictionary<long, int> vertexCache) {
-	vertexCache.Add(index, index);
+	  vertexCache.Add(index, index);
   }
 
   private int SubdivideEdge(int indexA, int indexB, ref Dictionary<long, int> cache, ref List<PlanetVertex> vertices, float radius) {
-	long key;
-	int index;
+    long key;
+    int index;
 
-	if (indexA < indexB) {
-	  key = ((long)indexA << 32) + indexB;
-	} else {
-	  key = ((long)indexB << 32) + indexA;
-	}
+    if (indexA < indexB) {
+      key = ((long)indexA << 32) + indexB;
+    } else {
+      key = ((long)indexB << 32) + indexA;
+    }
 
-	if (cache.TryGetValue(key, out index)) {
-	  // System.Diagnostics.Debug.WriteLine("have index " + index + "in cache. Vertex get: [" + vertices[index].x + ", " + vertices[index].y + ", " + vertices[index].z + "]");
-	  return index;
-	}
+    if (cache.TryGetValue(key, out index)) {
+      // System.Diagnostics.Debug.WriteLine("have index " + index + "in cache. Vertex get: [" + vertices[index].x + ", " + vertices[index].y + ", " + vertices[index].z + "]");
+      return index;
+    }
 
-	try {
-	  PlanetVertex a = vertices[indexA];
-	  PlanetVertex b = vertices[indexB];
+    try {
+      PlanetVertex a = vertices[indexA];
+      PlanetVertex b = vertices[indexB];
 
-	  // System.Diagnostics.Debug.WriteLine("Subdividing a: [" + a.x + ", " + a.y + ", " + a.z + "] and b [" + b.x + ", " + b.y + ", " + b.z + "]");
+      // System.Diagnostics.Debug.WriteLine("Subdividing a: [" + a.x + ", " + a.y + ", " + a.z + "] and b [" + b.x + ", " + b.y + ", " + b.z + "]");
 
 
-	  PlanetVertex newVertex = new PlanetVertex(
-		(a.x + b.x) / 2f,
-		(a.y + b.y) / 2f,
-		(a.z + b.z) / 2f
-	  );
-	  newVertex.FixVertexPoint(radius);
+      PlanetVertex newVertex = new PlanetVertex(
+      (a.x + b.x) / 2f,
+      (a.y + b.y) / 2f,
+      (a.z + b.z) / 2f
+      );
+      newVertex.FixVertexPoint(radius);
 
-  	// System.Diagnostics.Debug.WriteLine("new vertex: [" + newVertex.x + ", " + newVertex.y + ", " + newVertex.z + "] will have index " + vertices.Count);
+      // System.Diagnostics.Debug.WriteLine("new vertex: [" + newVertex.x + ", " + newVertex.y + ", " + newVertex.z + "] will have index " + vertices.Count);
 
-	  index = vertices.Count;
-	  vertices.Add(newVertex);
-	  cache.Add(key, index);
+      index = vertices.Count;
+      vertices.Add(newVertex);
+      cache.Add(key, index);
 
-	  return index;
-	} catch (Exception e) {
-	  System.Diagnostics.Debug.WriteLine("indexA: " + indexA + "; index B: " + indexB + "; vertices size:" + vertices.Count + "; vertices cap: " + vertices.Capacity);
-	throw e;
-	}
+      return index;
+    } catch (Exception e) {
+      System.Diagnostics.Debug.WriteLine("indexA: " + indexA + "; index B: " + indexB + "; vertices size:" + vertices.Count + "; vertices cap: " + vertices.Capacity);
+    throw e;
+    }
   }
+  #endregion
+
+  #region face-subdivision-iterative
+    //   /**
+    //    *   THIS PROBABLY WARRANTS REPEATING
+    //    *
+    //    *   This is the series of triangles we want to get
+    //    *
+    //    *         Arrangement           Triangle abbreviations
+    //    *                                  
+    //    *              /\                       *
+    //    *             /CC\                     / \
+    //    *            /    \                   / C \
+    //    *           /      \                 /_____\
+    //    *          /AC    BC\              / \     / \
+    //    *         /__________\            / A \ M / B \
+    //    *        /\BM      AM/\          /_____\ /_____\   
+    //    *       /CA\        /CB\
+    //    *      /    \      /    \
+    //    *     /      \    /      \
+    //    *    /AA    BA\CM/AB    BB\
+    //    *   /__________\/__________\
+    //    *
+    //    *   We arrange triangles in this way to make joining them a bit more sense.
+    //    *   
+    //    *   When joining edges, points on the edges around middle triangle are deduplicated
+    //    *   and points around the outer edges are concatenated. When deduplicating, we must
+    //    *   remember that points in edges of the inner (M) triangle are referenced in the 
+    //    *   opposite order than they are on the edges of the 
+    //    *
+    //   */
+
+    private object[] SubdivideFace(PlanetCell cell, int subdivisions, float radius) {
+      /* Let's see how many vertices and faces we can expect from this:
+       *
+       *   where n = subdivisions + 1:
+       * 
+       *   # of vertices:     (n² + n) / 2
+       *   # of faces:        n² / 2
+       *
+       * This is according to napkin math.
+       */ 
+
+      int segments = subdivisions + 1;
+      int newFaceCount = (segments * segments) / 2;
+      int newVertexCount = 3 + (subdivisions * 3) + (newFaceCount / 2);
+
+      List<PlanetVertex> newVertices = new List<PlanetVertex>(newVertexCount);
+      List<PlanetCell> newFaces = new List<PlanetCell>(newFaceCount);
+
+
+      float[] deltasAB = {
+        (cell.b.x - cell.a.x) / (float)segments,
+        (cell.b.y - cell.a.y) / (float)segments,
+        (cell.b.z - cell.a.z) / (float)segments
+      };
+
+      float[] deltasAC = {
+        ((cell.c.x - cell.a.x) / (float)segments) - deltasAB[0],
+        ((cell.c.y - cell.a.y) / (float)segments) - deltasAB[1],
+        ((cell.c.z - cell.a.z) / (float)segments) - deltasAB[2]
+      };
+
+      // this is an exception and we can do it outside the loop, so ... we're gonna do it outside the loop.
+
+      PlanetVertex newA = new PlanetVertex(cell.a.x, cell.a.y, cell.a.z);
+      PlanetVertex newB = new PlanetVertex(cell.b.x, cell.b.y, cell.b.z);
+      PlanetVertex newC = new PlanetVertex(cell.c.x, cell.c.y, cell.c.z);
+
+      /**
+       *  Imagine we have a triangle. Here's how we pick new spots
+       *  Coords: i,j                                               (NOTE: NOT ACTUAL VERTEX COORDS)
+       *
+       *  j
+       *  
+       *  A            .
+       *  |           .
+       *  |          .
+       *  |         2,2
+       *  |
+       *  |      1,1   2,1
+       *  |
+       *  |    0,0  1,0  2,0 . . .
+       *
+       *  x    ——————————————————————> i
+       *
+       *  As we can see, j coordinate will never get bigger than i because that's how triangles work.
+       *
+       *  Now we only need to convert these "on triangle" coordinates into "real" vertex coordinates 
+       *  (x,y,z). Since the triangle is a flat object, we can just interpolate between the vertices
+       *  using linear interpolation. 
+       *  
+       *  Interpolating is _very_ easy on the edges, but it gets a bit trickier inside the triangle
+       *  since we'd have to use interpolation to get coordinates.
+       *
+       *
+       *                       But do we really need interpolation, tho?
+       *
+       *  Turns out, we don't. Triangles are flat and our points will be peppered around in regular
+       *  intervals. This means that we can calculate the distance between the vertices of the triangle
+       *  we want to subdivide (and when we say 'distance', we mean delta x,y,z), and divide the 
+       *  distance/those deltas by number of subdivisions.
+       * 
+       *  Coordinates of the new triangle are determined the following formula:
+       *
+       *        x = Δx[a-b] * i  +  Δx[a-c] * j      | where Δx[a-b] is (B[x] - A[x])
+       *        y = Δy[a-b] * i  +  Δy[a-c] * j      | and   Δx[a-c] is (C[x] - A[x])
+       *        z = Δz[a-b] * i  +  Δz[a-c] * j      | Same applies for y and z. 
+       *
+       *
+       *  Let's briefly cover how faces and vertices are created:
+       *
+       *  j              .
+       *                .
+       *  A            .                     Quick definitions
+       *  |           9 . . .                
+       *  |                                    * corner-facing triangle:
+       *  |         5   8 . . .                  a triangle that faces the lower left corner 
+       *  |                                      a.k.a. vertex 0
+       *  |       2   4   7  . . .             
+       *  |                                    * edge-facing triangle:
+       *  |     0   1   3   6  10 . . .          a triangle that faces away from vertex 0
+       *
+       *  x    ——————————————————————> i
+       *
+       *  Here we can see that we need at least two (2) vertices on the edge-to-edge line
+       *  in order to form a triangle. For every iteration of the inner loop (starting at 
+       *  the second vertex), we can make two triangles:
+       *       
+       *       * corner-facing: (i-1, j-1), (i-1, j), (i,j)        example: vertices 1-3-4
+       *       * edge-facing:   (i-1, j-1), (i,j), (i, j-1)        example: vertices 1-4-2
+       *  
+       *  Most importantly, if i==j, we don't get to draw the edge-facing triangle (think
+       *  you can tell why from the picture).
+       *  
+       *  We also do few other things to make accessing the j-1 vertices a bit easier — 
+       *  we keep the vertices.length() - 1 (that is, index of last element) from the start
+       *  of the previous pass in a variable somewhere.
+       *  
+       *  Oh and by the way — instead of creating the "leftover" i==j triangle at the end 
+       *  of the loop, we can group creating the pair of edge-facing and corner-facing
+       *  triangles a bit differently, create the "leftover" triangle at the start in the
+       *  outer loop and lose us an unnecessary if statement.
+       */
+
+      // we define those outside of the for loop. We'll pick 'while' to do some early 
+      // optimizations ... hopefully.
+      int i = 0;
+      int j = 0;
+      int last_j = 0;
+
+      // this is our i=0 iteration, right here
+      newVertices.Add(newA);
+      newA.FixVertexPoint(radius);
+
+
+      // do note that the pylon operator means first loop iteration will be i=1 and
+      // last iteration will have i=subdivisions ... which is what we want in this case.
+      while (i ++< subdivisions) {
+        j = 0;
+
+        // at this point, last_j is about i from where we want it to be. Remember — blank
+        // vertices.length - 1 gives us the (i-1, i-1) vertex, but we want (i-1, 0)
+        last_j = newVertices.Count - i;  
+
+        // add new vertices for the first triangle
+        PlanetVertex b = new PlanetVertex(
+          newA.x + (deltasAB[0] * (float)i + deltasAC[0] * (float)(i - j)),
+          newA.y + (deltasAB[1] * (float)i + deltasAC[1] * (float)(i - j)),
+          newA.z + (deltasAB[2] * (float)i + deltasAC[2] * (float)(i - j))
+        );
+
+        j = 1;
+        PlanetVertex c = new PlanetVertex(
+          newA.x + (deltasAB[0] * (float)i + deltasAC[0] * (float)(i - j)),
+          newA.y + (deltasAB[1] * (float)i + deltasAC[1] * (float)(i - j)),
+          newA.z + (deltasAB[2] * (float)i + deltasAC[2] * (float)(i - j))
+        );
+        newVertices.Add(b);
+        newVertices.Add(c);
+        b.FixVertexPoint(radius);
+        c.FixVertexPoint(radius);
+        
+        // build first triangle
+        newFaces.Add(
+          new PlanetCell(
+            newVertices[last_j],
+            c,
+            b
+          )
+        );
+
+        // build the rest of the stuff
+        while (j ++< i) {
+          b = c;                      // save the reference to the previous "current" vertex
+          c = new PlanetVertex(       // create new vertex
+            newA.x + (deltasAB[0] * (float)i + deltasAC[0] * (float)(i - j)),
+            newA.y + (deltasAB[1] * (float)i + deltasAC[1] * (float)(i - j)),
+            newA.z + (deltasAB[2] * (float)i + deltasAC[2] * (float)(i - j))
+          );
+          newVertices.Add(c);
+          c.FixVertexPoint(radius);
+
+          // build the edge-facing triangle
+          newFaces.Add(
+            new PlanetCell(
+              newVertices[last_j],
+              newVertices[++last_j],   // increment before using — saves us an op
+              b
+            )
+          );
+          // build the corner-facing triangle
+          newFaces.Add(
+            new PlanetCell(
+              newVertices[last_j],
+              c,
+              b
+            )
+          );
+        }
+      }
+
+      // System.Diagnostics.Debug.WriteLine("————————————————————————————————————————— iteration finished ————————————————————————————————————————————————");
+
+      return new object[] {(object)newVertices, (object)newFaces};
+    }
   #endregion
 
   #region edge-stitch helpers

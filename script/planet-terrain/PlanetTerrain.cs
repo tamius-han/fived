@@ -33,7 +33,10 @@ public class PlanetTerrain : MeshInstance {
 
   // Called when the node enters the scene tree for the first time.
   public override void _Ready() {
-    StartGenerate(9);
+    StartGenerate(512);  // equivalent to 9 using recursive
+    // StartGenerate(4);
+
+    // StartGenerate(9);
 	  // GenerateSphere(7);
 	  // GenerateSphere(9);
   }
@@ -81,7 +84,6 @@ public class PlanetTerrain : MeshInstance {
     // 9 gives ~30s generate time, which is acceptable
     this.currentStatus = "Generating base topology (this step can take long!)";
     PlanetTopologyData[] planetData = pg.GenerateBaseTopology(iterations, radius);
-    // PlanetTopologyData[] planetData = pg.GenerateBaseTopology(8);
 
     planetGeneratorTimer.Stop();
     TimeSpan ts = planetGeneratorTimer.Elapsed;
@@ -124,13 +126,6 @@ public class PlanetTerrain : MeshInstance {
       foreach (PlanetCell c in data.faces) {
         c.AddToSurfaceTool(surfaceTool);
       }
-      // everything is in data, we no longer put our middle faces separately
-      // turns out this is dumb, because stitching the edges takes less than
-      // a second anyway
-
-      // foreach (PlanetCell c in data.middleFaces) {
-      //   c.AddToSurfaceTool(surfaceTool);
-      // }
     }
     surfaceTool.GenerateNormals();
     surfaceTool.Commit(this.planetMesh);

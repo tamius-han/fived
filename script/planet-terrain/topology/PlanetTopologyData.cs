@@ -19,6 +19,11 @@ namespace PlanetTopology {
       this.middleFaces = middleFaces;
       this.edgeCells = edgeCells;
     }
+
+     public PlanetTopologyData(List<PlanetVertex> vertices, List<PlanetCell> faces) {
+      this.vertices = vertices;
+      this.faces = faces;
+    }
   }
 
   public class EdgeData {
