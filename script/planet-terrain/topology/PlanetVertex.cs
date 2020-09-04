@@ -94,8 +94,8 @@ namespace PlanetTopology {
       }
       // add new neighbor
       this.neighbors.Add(neighbor);
-      if (this.neighbors.Count > 12) {
-        Debug.WriteLine("More than 6 neighbours for this vertex! Verts:" + this.neighbors.Count) ;
+      if (this.neighbors.Count > 8) {
+        Debug.WriteLine("More than 8 neighbours for this vertex! (6 neighbors for land + 1 twin on edge + 1 twin for portals). Neighbors:" + this.neighbors.Count) ;
       }
     }
     // public void AddPolygon(PlanetCell pc) {

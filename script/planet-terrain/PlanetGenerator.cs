@@ -7,14 +7,20 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Threading.Tasks;
 
-  [Flags]
-  public enum D20FaceEdge {
+[Flags]
+public enum D20FaceEdge {
 	NotAnEdge = 0,
 	AB = 1,
 	BC = 2,
 	CA = 4,
   MiddleFace = 8,
-  }
+}
+
+public enum TriangleEdge {
+  AB = 0,
+  BC = 1,
+  CA = 3
+}
 
 public class PlanetGenerator {
   
@@ -131,17 +137,45 @@ public class PlanetGenerator {
     // stitch faces together
     // TODO
 
-    // Stopwatch stitchTimer = new Stopwatch();
-    // stitchTimer.Start();
-    // object stitchLock = new object();
-    // Parallel.For(0, faces.Count - 1,  new ParallelOptions {MaxDegreeOfParallelism = cpuCores}, i => {
-    //   StitchEdgeBruteForce(i, edgeCells, stitchLock);
-    // });
+    Stopwatch stitchTimer = new Stopwatch();
+    stitchTimer.Start();
 
-    // stitchTimer.Stop();
-    // ts = stitchTimer.Elapsed;
-    // System.Diagnostics.Debug.WriteLine("Time needed for stitching: " + ts.Minutes + "m " + ts.Seconds + "." + ts.Milliseconds);
+    int[][] edgeIndexMap = GenerateEdgeIndexMap(subdivisions);
 
+    // generate face pairs
+    int facePairCount = 30; // there's only 30 (faces * edges / 2) valid edges, and we take care to only add valid edges here
+
+    List<List<PlanetVertex>[]> facePairs = new List<List<PlanetVertex>[]>(facePairCount);
+
+    int a = 0; 
+    int c = vertices[0].Count - 1;
+    int b = c - subdivisions - 1;
+
+    for (int i = 0; i < 20; i++) {
+      for (int j = 0; j <= i; j++) {
+        if ( // holy shit
+          vertices[i][a].Equals(vertices[j][a])
+          || vertices[i][a].Equals(vertices[j][b])
+          || vertices[i][a].Equals(vertices[j][c])
+          || vertices[i][b].Equals(vertices[j][a])
+          || vertices[i][b].Equals(vertices[j][b])
+          || vertices[i][b].Equals(vertices[j][c])
+          || vertices[i][c].Equals(vertices[j][a])
+          || vertices[i][c].Equals(vertices[j][b])
+          || vertices[i][c].Equals(vertices[j][c])
+        ) {
+          facePairs.Add(new List<PlanetVertex>[] {vertices[i], vertices[j]});
+        }
+      }
+    }
+    
+    Parallel.For(0, facePairs.Count, new ParallelOptions {MaxDegreeOfParallelism = System.Environment.ProcessorCount}, i => {
+      StitchEdges(facePairs[i][0], facePairs[i][1], subdivisions, false, edgeIndexMap);
+    });
+
+    stitchTimer.Stop();
+    ts = stitchTimer.Elapsed;
+    System.Diagnostics.Debug.WriteLine("Time needed for stitching: " + ts.Minutes + "m " + ts.Seconds + "." + ts.Milliseconds);
 
     return data;
   }
@@ -416,34 +450,34 @@ public class PlanetGenerator {
   #endregion
 
   #region face-subdivision-iterative
-    //   /**
-    //    *   THIS PROBABLY WARRANTS REPEATING
-    //    *
-    //    *   This is the series of triangles we want to get
-    //    *
-    //    *         Arrangement           Triangle abbreviations
-    //    *                                  
-    //    *              /\                       *
-    //    *             /CC\                     / \
-    //    *            /    \                   / C \
-    //    *           /      \                 /_____\
-    //    *          /AC    BC\              / \     / \
-    //    *         /__________\            / A \ M / B \
-    //    *        /\BM      AM/\          /_____\ /_____\   
-    //    *       /CA\        /CB\
-    //    *      /    \      /    \
-    //    *     /      \    /      \
-    //    *    /AA    BA\CM/AB    BB\
-    //    *   /__________\/__________\
-    //    *
-    //    *   We arrange triangles in this way to make joining them a bit more sense.
-    //    *   
-    //    *   When joining edges, points on the edges around middle triangle are deduplicated
-    //    *   and points around the outer edges are concatenated. When deduplicating, we must
-    //    *   remember that points in edges of the inner (M) triangle are referenced in the 
-    //    *   opposite order than they are on the edges of the 
-    //    *
-    //   */
+      /**
+       *   THIS PROBABLY WARRANTS REPEATING
+       *
+       *   This is the series of triangles we want to get
+       *
+       *         Arrangement           Triangle abbreviations
+       *                                  
+       *              /\                       *
+       *             /CC\                     / \
+       *            /    \                   / C \
+       *           /      \                 /_____\
+       *          /AC    BC\              / \     / \
+       *         /__________\            / A \ M / B \
+       *        /\BM      AM/\          /_____\ /_____\   
+       *       /CA\        /CB\
+       *      /    \      /    \
+       *     /      \    /      \
+       *    /AA    BA\CM/AB    BB\
+       *   /__________\/__________\
+       *
+       *   We arrange triangles in this way to make joining them a bit more sense.
+       *   
+       *   When joining edges, points on the edges around middle triangle are deduplicated
+       *   and points around the outer edges are concatenated. When deduplicating, we must
+       *   remember that points in edges of the inner (M) triangle are referenced in the 
+       *   opposite order than they are on the edges of the 
+       *
+      */
 
     private object[] SubdivideFace(PlanetCell cell, int subdivisions, float radius) {
       /* Let's see how many vertices and faces we can expect from this:
@@ -451,14 +485,14 @@ public class PlanetGenerator {
        *   where n = subdivisions + 1:
        * 
        *   # of vertices:     (n² + n) / 2
-       *   # of faces:        n² / 2
+       *   # of faces:         n²
        *
        * This is according to napkin math.
        */ 
 
       int segments = subdivisions + 1;
-      int newFaceCount = (segments * segments) / 2;
-      int newVertexCount = 3 + (subdivisions * 3) + (newFaceCount / 2);
+      int newFaceCount = (segments * segments);
+      int newVertexCount = ((segments * segments) + segments) / 2;
 
       List<PlanetVertex> newVertices = new List<PlanetVertex>(newVertexCount);
       List<PlanetCell> newFaces = new List<PlanetCell>(newFaceCount);
@@ -475,12 +509,6 @@ public class PlanetGenerator {
         ((cell.c.y - cell.a.y) / (float)segments) - deltasAB[1],
         ((cell.c.z - cell.a.z) / (float)segments) - deltasAB[2]
       };
-
-      // this is an exception and we can do it outside the loop, so ... we're gonna do it outside the loop.
-
-      PlanetVertex newA = new PlanetVertex(cell.a.x, cell.a.y, cell.a.z);
-      PlanetVertex newB = new PlanetVertex(cell.b.x, cell.b.y, cell.b.z);
-      PlanetVertex newC = new PlanetVertex(cell.c.x, cell.c.y, cell.c.z);
 
       /**
        *  Imagine we have a triangle. Here's how we pick new spots
@@ -564,14 +592,18 @@ public class PlanetGenerator {
       int j = 0;
       int last_j = 0;
 
-      // this is our i=0 iteration, right here
+      // this is our i=0 iteration, right here — and by the way, we _do_ need to duplicate
+      // all the corner points as well for various reasons — namely, we want the newly
+      // generated subdivision to be entirely separate from the triangle we're subdividing
+
+      PlanetVertex newA = new PlanetVertex(cell.a.x, cell.a.y, cell.a.z);
       newVertices.Add(newA);
       newA.FixVertexPoint(radius);
 
 
       // do note that the pylon operator means first loop iteration will be i=1 and
       // last iteration will have i=subdivisions ... which is what we want in this case.
-      while (i ++< subdivisions) {
+      while (i ++<= subdivisions) {
         j = 0;
 
         // at this point, last_j is about i from where we want it to be. Remember — blank
@@ -961,13 +993,309 @@ public class PlanetGenerator {
       discard.neighbors[i].neighbors.Remove(discard);
 
       // add old neighbors to 'keep' (and keep to old neighbors)
-      try {
-      keep.AddNeighbor(discard.neighbors[i]);
-      } catch (Exception e) {
-        Debug.WriteLine("accessing inexistent element. discard.neihgbors.length? " + discard.neighbors.Count + "; i: " + i);
-      }
+      //try {
+        keep.AddNeighbor(discard.neighbors[i]);
+      //} catch (Exception e) {
+      //  Debug.WriteLine("accessing inexistent element. discard.neihgbors.length? " + discard.neighbors.Count + "; i: " + i);
+      //}
     }
     // discard = null;
+  }
+
+  public int[][] GenerateEdgeIndexMap(int subdivisions) {
+    int segments = subdivisions + 1;
+
+    int[] edgeAB = new int[subdivisions - 1]; // no corner point here
+    int[] edgeBC = new int[subdivisions - 1];
+    int[] edgeCA = new int[subdivisions - 1];
+
+    int[][] ret = {edgeAB, edgeBC, edgeCA};
+
+    /* Quick refreshers. 
+     * 
+     *   # of vertices:     (n² + n) / 2          (where n = subdivisions + 1)
+     *
+     *
+     * And here's how indices of vertices get assigned in our triangle:
+     *
+     *  j              
+     *                14
+     *  A                                 Quick definitions
+     *  |           9  13                 
+     *  |                                    * corner-facing triangle:
+     *  |         5   8  12                  a triangle that faces the lower left corner 
+     *  |                                      a.k.a. vertex 0
+     *  |       2   4   7  11              
+     *  |                                    * edge-facing triangle:
+     *  |     0   1   3   6  10                a triangle that faces away from vertex 0
+     *
+     *  x    ——————————————————————> i
+     *
+     *  And our triangle angles are, as is tradition:
+     *
+     *                C
+     *               / \
+     *              A — B
+     *
+     *
+     * Indices on BC edge are the easiest to calculate: they start at B, which is ((n² + n) / 2) - n.
+     * Because we're excluding corners, we ... i dont think I need to explain this. 
+     *
+     * Indices on AB and BC edges are a lil bit more complex, but nothing really too hard.
+     */ 
+
+    // Parallel.For(0, 3, new ParallelOptions {MaxDegreeOfParallelism = System.Environment.ProcessorCount}, i => {
+    for (int i = 0; i < 3; i++ ) {
+      int j = subdivisions - 1;
+      int k;
+      switch(i) {
+        case 0:     // AB
+          k = subdivisions - 1;
+          while (j --> 0) {
+            ret[0][j] = ((k * k) + k) / 2;
+            --k;
+          }
+          System.Diagnostics.Debug.WriteLine(
+            "--------- first few indices of A-B line ------"   
+          );
+          for (int t = 0; t < 10 && t < ret[0].Length; t++) {
+            System.Diagnostics.Debug.WriteLine(ret[0][t]);
+          }
+          break;
+        case 1:    // BC — easiest one
+          // order of statements is important!
+          int vertCount = ((segments*segments) + segments) / 2;
+          int firstVert = vertCount - segments; // this excludes B corner
+
+          while (j --> 0) {
+            ret[1][j] = vertCount;
+            --vertCount;
+          }
+          System.Diagnostics.Debug.WriteLine(
+            "--------- first few indices of B-C line ------"   
+          );
+          for (int t = 0; t < 10 && t < ret[0].Length; t++) {
+            System.Diagnostics.Debug.WriteLine(ret[1][t]);
+          }
+          break;
+        case 2:   // CA — quick reminder: this array goes from high to low
+          k = 2;
+          while (j --> 0) {
+            ret[2][j] = (((k * k) + k) / 2) - 1;
+            ++k;
+          }
+          System.Diagnostics.Debug.WriteLine(
+            "--------- first few indices of C-A line (in reverse — from A towards C) ------"   
+          );
+          int u = ret[2].Length;
+          for (int t = 0; t < 10 && t < ret[0].Length; t++) {
+            System.Diagnostics.Debug.WriteLine(ret[2][--u]);
+          }
+          break;
+      }
+    // });
+    }
+
+    return ret;
+  }
+
+  public void StitchEdges(List<PlanetVertex> face1, List<PlanetVertex> face2, int subdivisions, Boolean stitchCorners, int[][] edgeIndexMap) {
+    /**
+     *  In order to make this code as thread-safe as possible, we'll "stitch" corners separately. 
+     *  This works because it's expected that subdivisions could get rather large (intended: from
+     *  500 to over 1000, whatever my Ryzen 7 2700X can do in half a minute for full world generation).
+     *  There's also 20 * 3 edges to be stitched and 16 threads to go around in my 2700X, so ... 
+     *  I reckon that the cost of parallelisation is less than what we'll gain.
+     *
+     *  As usual, we're gonna offload actual stitching to a different method to keep things clean.
+     *
+     *  Parallelisation should be handled outside this method where applicable.
+     */
+
+
+    int a = 0; 
+    int c = face1.Count - 1;
+    int b = c - subdivisions - 1;
+
+    int[] cornerIndexCache = {a, b, c};
+
+    /**
+     *  Possible edge combinations, by the way:
+     *  
+     *
+     *       C             C             C    
+     *
+     *    A ---> B      A ---> B      A ---> B
+     *    B <--- A      A <--- C      C <--- B
+     * 
+     *       C             B             A    
+     *
+     *  .......................................
+     *
+     *
+     *       A             A              A
+     *
+     *    B ---> C      B ---> C      B ---> C
+     *    B <--- A      A <--- C      C <--- B
+     * 
+     *       C             B             A    
+     *
+     *  .......................................
+     *
+     *
+     *       B             B             B    
+     *
+     *    C ---> A      C ---> A      C ---> A
+     *    B <--- A      A <--- C      C <--- B
+     * 
+     *       C             B             A    
+     *
+     *  We notice a pattern: the edges always run in the opposite direction. This will come in handy.
+     *  This could prolly be done in a loop, but eh.
+     */
+
+    #region top
+
+    // Top left
+    if (face1[a].Equals(face2[b]) && face1[b].Equals(face2[a])) {
+      System.Diagnostics.Debug.WriteLine("Stitching edges AB <----> AB");
+
+      if (stitchCorners) {
+        this.StitchCorners(face1[a], face2[b]);
+        this.StitchCorners(face1[b], face2[a]);
+        return;
+      }
+      this.StitchEdge(face1, edgeIndexMap[0], face2, edgeIndexMap[0]);
+      return;
+    }
+    // Top middle
+    if (face1[a].Equals(face2[a]) && face1[b].Equals(face2[c])) {
+      System.Diagnostics.Debug.WriteLine("Stitching edges AB <----> CA");
+
+      if (stitchCorners) {
+        this.StitchCorners(face1[a], face2[a]);
+        this.StitchCorners(face1[b], face2[c]);
+        return;
+      }
+      this.StitchEdge(face1, edgeIndexMap[0], face2, edgeIndexMap[2]);
+      return;
+    }
+    // Top right
+    if (face1[a].Equals(face2[c]) && face1[b].Equals(face2[b])) {
+      System.Diagnostics.Debug.WriteLine("Stitching edges AB <----> BC");
+
+      if (stitchCorners) {
+        this.StitchCorners(face1[a], face2[c]);
+        this.StitchCorners(face1[b], face2[b]);
+        return;
+      }
+      this.StitchEdge(face1, edgeIndexMap[0], face2, edgeIndexMap[1]);
+      return;
+    }
+    #endregion top
+
+    #region middle
+    // Middle left
+    if (face1[b].Equals(face2[b]) && face1[c].Equals(face2[a])) {
+      System.Diagnostics.Debug.WriteLine("Stitching edges BC <----> AB");
+
+      if (stitchCorners) {
+        this.StitchCorners(face1[b], face2[b]);
+        this.StitchCorners(face1[c], face2[a]);
+        return;
+      }
+      this.StitchEdge(face1, edgeIndexMap[1], face2, edgeIndexMap[0]);
+      return;
+    }
+    // Middle middle
+    if (face1[b].Equals(face2[a]) && face1[c].Equals(face2[c])) {
+      System.Diagnostics.Debug.WriteLine("Stitching edges BC <----> CA");
+
+      if (stitchCorners) {
+        this.StitchCorners(face1[b], face2[a]);
+        this.StitchCorners(face1[c], face2[c]);
+        return;
+      }
+      this.StitchEdge(face1, edgeIndexMap[1], face2, edgeIndexMap[2]);
+      return;
+    }
+    // Middle right
+    if (face1[b].Equals(face2[c]) && face1[c].Equals(face2[b])) {
+      System.Diagnostics.Debug.WriteLine("Stitching edges BC <----> BC");
+
+      if (stitchCorners) {
+        this.StitchCorners(face1[b], face2[c]);
+        this.StitchCorners(face1[c], face2[b]);
+        return;
+      }
+      this.StitchEdge(face1, edgeIndexMap[1], face2, edgeIndexMap[1]);
+      return;
+    }
+    #endregion middle
+
+    #region bottom
+    // Bottom left
+    if (face1[c].Equals(face2[b]) && face1[a].Equals(face2[a])) {
+      System.Diagnostics.Debug.WriteLine("Stitching edges CA <----> AB");
+
+      if (stitchCorners) {
+        this.StitchCorners(face1[c], face2[b]);
+        this.StitchCorners(face1[a], face2[a]);
+        return;
+      }
+      this.StitchEdge(face1, edgeIndexMap[1], face2, edgeIndexMap[0]);
+      return;
+    }
+    // Bottom bottom
+    if (face1[c].Equals(face2[a]) && face1[a].Equals(face2[c])) {
+      System.Diagnostics.Debug.WriteLine("Stitching edges CA <----> CA");
+
+      if (stitchCorners) {
+        this.StitchCorners(face1[c], face2[a]);
+        this.StitchCorners(face1[a], face2[c]);
+        return;
+      }
+      
+      this.StitchEdge(face1, edgeIndexMap[1], face2, edgeIndexMap[2]);
+      return;
+    }
+    // Bottom right
+    if (face1[c].Equals(face2[c]) && face1[a].Equals(face2[b])) {
+      System.Diagnostics.Debug.WriteLine("Stitching edges CA <----> BC");
+
+      if (stitchCorners) {
+        this.StitchCorners(face1[c], face2[c]);
+        this.StitchCorners(face1[a], face2[b]);
+        return;
+      }
+      this.StitchEdge(face1, edgeIndexMap[1], face2, edgeIndexMap[1]);
+      return;
+    }
+    #endregion bottom
+  
+    return;
+  }
+
+  private void StitchEdge(List<PlanetVertex> face1, int[] edgeIndices1, List<PlanetVertex> face2, int[] edgeIndices2) {
+    int i = 0;
+    int j = edgeIndices2.Length;
+
+    // we want to keep the edge points in both faces separately (as it might make our life a wee bit easier
+    // if we ever decide that we wanna isolate subdivided faces)
+    //
+    // This might change at a later date, but until then we'll just add the seventh neighbor to every point
+    // and be donee with it. We also don't need to draw triangles, there's no missing faces actually.
+
+    while (j --> 0) {
+      face1[edgeIndices1[i]].AddNeighbor(face2[edgeIndices2[j]]);
+      face2[edgeIndices2[j]].AddNeighbor(face1[edgeIndices1[i]]);
+      i++;
+    }
+  }
+
+  private void StitchCorners(PlanetVertex a, PlanetVertex b) {
+    a.AddNeighbor(b);
+    b.AddNeighbor(a);
   }
 
   #endregion

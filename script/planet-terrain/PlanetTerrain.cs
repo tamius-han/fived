@@ -4,6 +4,7 @@ using PlanetTopology;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Threading.Tasks;
 using static Godot.Mesh;
 using static Godot.SpatialMaterial;
 
@@ -24,7 +25,7 @@ public class PlanetTerrain : MeshInstance {
   private Boolean isGenerated;
   private PlanetGenerator pg;
 
-  private Label progressLabel;
+  // private Label progressLabel;
 
   // private static int subdivide(List<Vector3> vertices, int point1Index, int point2Index)
   // {
@@ -33,7 +34,8 @@ public class PlanetTerrain : MeshInstance {
 
   // Called when the node enters the scene tree for the first time.
   public override void _Ready() {
-    StartGenerate(512);  // equivalent to 9 using recursive
+    StartGenerate(1024);
+    // StartGenerate(512);  // equivalent to 9 using recursive
     // StartGenerate(4);
 
     // StartGenerate(9);
@@ -97,21 +99,22 @@ public class PlanetTerrain : MeshInstance {
 
     this.currentStatus = "Adding perlin noise ...";
 
-    foreach (PlanetTopologyData data in planetData) {
+    Parallel.For(0, planetData.Length, new ParallelOptions {MaxDegreeOfParallelism = System.Environment.ProcessorCount}, i => {
+      PlanetTopologyData data = planetData[i];
       data.vertices = pg.AddPerlinDisplacement(data.vertices, radius, 16, 0.42f);
 
-      float maxDispalcement = 0;
-      float maxNegDisplacement = 0;
-      foreach (PlanetVertex pv in data.vertices) {
-        if (pv.h > maxDispalcement) {
-          maxDispalcement = pv.h;
-        }
-        if (pv.h < maxNegDisplacement) {
-          maxNegDisplacement = pv.h;
-        }
-      }
-      Debug.WriteLine("Max displacement for this face (from-to) " + maxNegDisplacement +" -> " + maxDispalcement);
-    }
+      // float maxDispalcement = 0;
+      // float maxNegDisplacement = 0;
+      // foreach (PlanetVertex pv in data.vertices) {
+      //   if (pv.h > maxDispalcement) {
+      //     maxDispalcement = pv.h;
+      //   }
+      //   if (pv.h < maxNegDisplacement) {
+      //     maxNegDisplacement = pv.h;
+      //   }
+      // }
+      // Debug.WriteLine("Max displacement for this face (from-to) " + maxNegDisplacement +" -> " + maxDispalcement);
+    });
 
     perlinTimer.Stop();
     ts = perlinTimer.Elapsed;
@@ -122,11 +125,42 @@ public class PlanetTerrain : MeshInstance {
 
     this.currentStatus = "Building planet mesh ...";
 
-    foreach (PlanetTopologyData data in planetData) {
-      foreach (PlanetCell c in data.faces) {
-        c.AddToSurfaceTool(surfaceTool);
+    // // Possible future for multithreading ahead. Might happen some day.
+    //
+    // SurfaceTool[] surfaceTool = new SurfaceTool[planetData.Length];
+    // this.planetMeshes = new ArrayMesh[planetData.Length];
+
+    // material.VertexColorUseAsAlbedo = true;
+
+    // Parallel.For(0, planetData.Length, new ParallelOptions {MaxDegreeOfParallelism = System.Environment.ProcessorCount}, i => {
+    //   surfaceTool[i] = new SurfaceTool();
+    //   this.planetMeshes[i] = new ArrayMesh();
+
+    //   surfaceTool[i].SetMaterial(material);
+    //   surfaceTool[i].Begin(PrimitiveType.Triangles);
+
+    //   for (int j = 0; j < planetData[i].faces.Count; j++) {
+    //     planetData[i].faces[j].AddToSurfaceTool(surfaceTool[i]);
+    //   }
+
+    //   surfaceTool[i].GenerateNormals();
+    //   surfaceTool[i].Commit(this.planetMeshes[i]);
+    // });
+
+    int faceCount;
+    for(int i = 0; i < planetData.Length; i++) {
+      faceCount = planetData[i].faces.Count;
+      for(int j = 0; j < faceCount; j++) {
+        planetData[i].faces[j].AddToSurfaceTool(surfaceTool);
       }
     }
+
+    // foreach (PlanetTopologyData data in planetData) {
+    //   foreach (PlanetCell c in data.faces) {
+    //     c.AddToSurfaceTool(surfaceTool);
+    //   }
+    // }
+
     surfaceTool.GenerateNormals();
     surfaceTool.Commit(this.planetMesh);
 
